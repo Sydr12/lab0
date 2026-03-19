@@ -11,7 +11,7 @@ interface PageMeta {
 
 const pageMetaMap: Record<string, PageMeta> = {
   "/": {
-    banner: "/banners/A0001.webp",
+    banner: "/banners/A0000.webp",
     title: "Projects",
     subtitle: "새로운 아이디어를 찾고 연구하는 공간",
   },
@@ -19,7 +19,7 @@ const pageMetaMap: Record<string, PageMeta> = {
 
 const projectMetaMap: Record<string, PageMeta> = {
   homepage: {
-    banner: "/banners/A0001.webp",
+    banner: "/banners/A0000.webp",
     title: "Lab0",
     subtitle: "개인 연구 포털 구축",
   },

@@ -1,6 +1,6 @@
 ---
 title: Lab0
-id: A0001
+id: A0000
 status: in-progress
 tags: [Next.js, Tailwind, Vercel, TypeScript]
 createdAt: 2026-03-19
