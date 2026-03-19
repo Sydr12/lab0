@@ -3,6 +3,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import { FontProvider } from "@/components/FontContext";
 import Logo from "@/components/Logo";
+import HeroBanner from "@/components/HeroBanner";
 
 export const metadata: Metadata = {
   title: "Lab0",
@@ -52,19 +53,7 @@ export default function RootLayout({
 
         </header>
         <Sidebar />
-        {/* Hero Banner */}
-        <div className="w-full h-48 sm:h-64 relative overflow-hidden">
-          <img src="/banner.png" alt="banner" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-surface to-transparent" />
-          <div className="absolute bottom-6 left-0 right-0 z-10">
-            <div className="max-w-3xl mx-auto px-5">
-              <div className="inline-block bg-black/50 backdrop-blur-sm rounded-xl px-4 py-3">
-                <h1 className="text-white text-lg sm:text-xl font-bold">Projects</h1>
-                <p className="text-white/70 text-xs mt-0.5">새로운 아이디어를 찾고 연구하는 공간</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <HeroBanner />
         <main className="max-w-3xl mx-auto px-5 py-8">{children}</main>
         <footer className="max-w-3xl mx-auto px-5 py-8 text-center text-xs text-text-secondary border-t border-border">
           © 2026 Lab0
