@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #6CB4EE;
+  --color-primary-light: #B8D8F8;
+  --color-primary-dark: #4A90C4;
+  --color-surface: #FAFBFC;
+  --color-surface-card: #FFFFFF;
+  --color-border: #E8ECF0;
+  --color-text-primary: #1A1A2E;
+  --color-text-secondary: #6B7280;
+  --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
