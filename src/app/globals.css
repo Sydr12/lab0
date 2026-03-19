@@ -9,5 +9,14 @@
   --color-border: #E8ECF0;
   --color-text-primary: #1A1A2E;
   --color-text-secondary: #6B7280;
-  --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-sans: 'Do Hyeon', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+@keyframes neon-pulse {
+  0%, 100% { box-shadow: 0 3px 6px rgba(0,0,0,0.25), 0 0 4px #6CB4EE, 0 0 10px #6CB4EE, 0 0 20px #6CB4EE40; }
+  50% { box-shadow: 0 4px 8px rgba(0,0,0,0.3), 0 0 6px #6CB4EE, 0 0 16px #6CB4EE, 0 0 30px #6CB4EE60; }
+}
+
+.neon-glow {
+  animation: neon-pulse 2s ease-in-out infinite;
 }

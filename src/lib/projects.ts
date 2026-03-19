@@ -3,9 +3,11 @@ import path from "path";
 
 export interface ProjectMeta {
   title: string;
+  id: string;
   status: "in-progress" | "completed" | "paused";
   tags: string[];
   createdAt: string;
+  version: string;
   slug: string;
 }
 
@@ -61,9 +63,11 @@ export function getProjects(): ProjectMeta[] {
       return {
         slug,
         title: meta.title || slug,
+        id: meta.id || "",
         status: (meta.status as ProjectMeta["status"]) || "in-progress",
         tags: parseTags(meta.tags || ""),
         createdAt: meta.createdAt || "",
+        version: meta.version || "",
       };
     })
     .filter(Boolean) as ProjectMeta[];
@@ -96,9 +100,11 @@ export function getProject(slug: string): Project | null {
   return {
     slug,
     title: meta.title || slug,
+    id: meta.id || "",
     status: (meta.status as ProjectMeta["status"]) || "in-progress",
     tags: parseTags(meta.tags || ""),
     createdAt: meta.createdAt || "",
+    version: meta.version || "",
     content,
     logs,
   };
