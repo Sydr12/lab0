@@ -7,6 +7,7 @@ interface PageMeta {
   banner?: string;
   title: string;
   subtitle: string;
+  link?: string;
 }
 
 const pageMetaMap: Record<string, PageMeta> = {
@@ -27,6 +28,7 @@ const projectMetaMap: Record<string, PageMeta> = {
     banner: "/banners/A0001.webp",
     title: "Reel1",
     subtitle: "AI를 활용한 20분 단편 영화 제작",
+    link: "#",
   },
 };
 
@@ -62,7 +64,7 @@ export default function HeroBanner() {
       )}
       <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-surface to-transparent" />
       <div className="absolute bottom-6 left-0 right-0 z-10">
-        <div className="max-w-3xl mx-auto px-5">
+        <div className="max-w-3xl mx-auto px-5 flex items-end justify-between">
           <div
             className={`inline-block rounded-xl px-4 py-3 transition-all duration-150 cursor-default select-none ${
               pressed
@@ -92,6 +94,17 @@ export default function HeroBanner() {
               </p>
             )}
           </div>
+          {meta.link && (
+            <a
+              href={meta.link}
+              className="px-3 py-1.5 bg-white/90 text-text-primary text-xs font-bold rounded-lg shadow-md hover:bg-white transition-all flex items-center gap-1"
+            >
+              이동
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M4 2l4 4-4 4" />
+              </svg>
+            </a>
+          )}
         </div>
       </div>
     </div>
