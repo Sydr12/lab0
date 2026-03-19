@@ -19,39 +19,34 @@ export default async function ProjectPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-surface-card rounded-2xl border border-border p-5">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div>
-            {project.id && (
-              <span className="text-[10px] font-mono text-text-secondary bg-surface px-1.5 py-0.5 rounded">
-                {project.id}
-              </span>
-            )}
-            <h1 className="text-2xl font-bold mt-1">{project.title}</h1>
-          </div>
-          <div className="flex flex-col items-end gap-1">
-            <StatusBadge status={project.status} />
-            {project.version && (
-              <span className="text-[10px] font-mono text-primary bg-primary-light/20 px-1.5 py-0.5 rounded">
-                v{project.version}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          {project.tags.map((tag) => (
-            <span
-              key={tag}
-              className="px-2 py-0.5 text-xs bg-surface rounded-md text-text-secondary"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-        <p className="text-xs text-text-secondary">
-          시작일: {project.createdAt}
-        </p>
+      {/* Meta Info */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {project.id && (
+          <span className="text-[10px] font-mono text-text-secondary bg-surface-card border border-border px-1.5 py-0.5 rounded">
+            {project.id}
+          </span>
+        )}
+        <StatusBadge status={project.status} />
+        {project.version && (
+          <span className="text-[10px] font-mono text-primary bg-primary-light/20 px-1.5 py-0.5 rounded">
+            v{project.version}
+          </span>
+        )}
+        <span className="text-xs text-text-secondary">
+          {project.createdAt}
+        </span>
+      </div>
+
+      {/* Tags */}
+      <div className="flex flex-wrap gap-1.5">
+        {project.tags.map((tag) => (
+          <span
+            key={tag}
+            className="px-2 py-0.5 text-xs bg-surface-card border border-border rounded-md text-text-secondary"
+          >
+            {tag}
+          </span>
+        ))}
       </div>
 
       {/* Content Sections */}
@@ -60,8 +55,8 @@ export default async function ProjectPage({
         const title = lines[0].trim();
         const body = lines.slice(1).join("\n").trim();
         return (
-          <section key={i} className="bg-surface-card rounded-2xl border border-border p-5">
-            <h2 className="text-base font-bold mb-3">{title}</h2>
+          <section key={i}>
+            <h2 className="text-base font-bold mb-2">{title}</h2>
             <div className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
               {body}
             </div>

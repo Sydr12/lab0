@@ -108,7 +108,7 @@ function SidebarPanel({ open, onClose }: { open: boolean; onClose: () => void })
         onClick={onClose}
       />
       <aside
-        className={`fixed top-0 left-0 w-2/3 bg-white/50 backdrop-blur-xl rounded-br-2xl border-r border-b border-border z-[70] transform transition-transform duration-200 ease-in-out ${
+        className={`fixed top-0 left-0 w-2/3 bg-white/30 backdrop-blur-sm rounded-br-2xl border-r border-b border-border z-[70] transform transition-transform duration-200 ease-in-out ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
