@@ -27,7 +27,7 @@ const projectMetaMap: Record<string, PageMeta> = {
   reel1: {
     banner: "/banners/A0001.webp",
     title: "Reel1",
-    subtitle: "AI를 활용한 20분 단편 영화 제작",
+    subtitle: "영화/드라마 개인 아카이브",
     link: "#",
   },
 };
