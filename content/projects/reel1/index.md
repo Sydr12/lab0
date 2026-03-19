@@ -1,7 +1,7 @@
 ---
 title: Reel1
 id: A0001
-status: in-progress
+status: paused
 tags: [Next.js, 영화, 드라마, OTT, 크롤링, DB]
 createdAt: 2026-03-19
 version: 0.1.0
