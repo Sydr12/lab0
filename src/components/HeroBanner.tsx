@@ -23,6 +23,10 @@ const projectMetaMap: Record<string, PageMeta> = {
     title: "Lab0",
     subtitle: "개인 연구 포털 구축",
   },
+  reel1: {
+    title: "Reel1",
+    subtitle: "AI를 활용한 20분 단편 영화 제작",
+  },
 };
 
 function getPageMeta(pathname: string): PageMeta {
