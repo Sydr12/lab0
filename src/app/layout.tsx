@@ -54,9 +54,7 @@ export default function RootLayout({
         <Sidebar />
         {/* Hero Banner */}
         <div className="w-full h-48 sm:h-64 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-800 to-black" />
-          {/* 실제 이미지 사용 시: */}
-          {/* <img src="/banner.jpg" alt="banner" className="absolute inset-0 w-full h-full object-cover" /> */}
+          <img src="/banner.png" alt="banner" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-surface to-transparent" />
           <div className="absolute bottom-6 left-0 right-0 z-10">
             <div className="max-w-3xl mx-auto px-5">
