@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Hub",
-  description: "Personal project hub",
+  title: "Lab0",
+  description: "Personal project lab",
 };
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
         <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-sm border-b border-border">
           <nav className="max-w-3xl mx-auto px-5 h-14 flex items-center justify-between">
             <a href="/" className="text-lg font-bold tracking-tight">
-              🏠 Hub
+              Lab0
             </a>
             <div className="flex gap-4 text-sm text-text-secondary">
               <a href="/" className="hover:text-text-primary transition-colors">
@@ -42,7 +42,7 @@ export default function RootLayout({
         </header>
         <main className="max-w-3xl mx-auto px-5 py-8">{children}</main>
         <footer className="max-w-3xl mx-auto px-5 py-8 text-center text-xs text-text-secondary border-t border-border">
-          © 2026 Hub
+          © 2026 Lab0
         </footer>
       </body>
     </html>
