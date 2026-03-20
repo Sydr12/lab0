@@ -31,6 +31,7 @@ const menuItems: MenuItem[] = [
     children: [
       { label: "글꼴 비교", href: "/fonts" },
       { label: "Stage1", href: "/stage1" },
+      { label: "Idol2", href: "/idol2" },
     ],
   },
   { label: "설정", href: "/settings" },
