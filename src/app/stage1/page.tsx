@@ -193,14 +193,18 @@ export default function MMDPage() {
       clock = new THREE.Clock();
       mixer = null;
 
+      var isPlaying = false;
+
       function animate() {
         requestAnimationFrame(animate);
         var delta = clock.getDelta();
-        if (helper.meshes && helper.meshes.length > 0) {
-          helper.update(delta);
+        if (isPlaying) {
+          if (helper.meshes && helper.meshes.length > 0) {
+            helper.update(delta);
+          }
+          if (mixer) mixer.update(delta);
+          if (window._ikSolver) window._ikSolver.update();
         }
-        if (mixer) mixer.update(delta);
-        if (window._ikSolver) window._ikSolver.update();
         controls.update();
         effect.render(scene, camera);
       }
@@ -439,21 +443,21 @@ export default function MMDPage() {
         addLog('✅ 음악 로드: ' + file.name, 'lime');
       });
 
-      // 재생/정지
+      // 재생 — 모션 + 음악 동시 시작
       document.getElementById('play-btn').addEventListener('click', function() {
         var audioEl = document.getElementById('bgm-audio');
+        isPlaying = true;
+        clock.getDelta(); // 델타 리셋
         if (audioEl.src) {
           audioEl.play();
-          addLog('▶ 재생 시작');
         }
-        // MMD 애니메이션도 리셋
-        if (helper.meshes && helper.meshes.length > 0) {
-          addLog('애니메이션 재생 중');
-        }
+        addLog('▶ 재생 시작 (모션+음악 동기화)');
       });
 
+      // 정지 — 모션 + 음악 동시 정지
       document.getElementById('stop-btn').addEventListener('click', function() {
         var audioEl = document.getElementById('bgm-audio');
+        isPlaying = false;
         audioEl.pause();
         audioEl.currentTime = 0;
         addLog('■ 정지');
