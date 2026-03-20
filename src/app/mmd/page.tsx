@@ -7,20 +7,31 @@ export default function MMDPage() {
         id="three-container"
         style={{ width: "100%", height: "400px", borderRadius: "16px", overflow: "hidden", border: "1px solid #E8ECF0", position: "relative" }}
       />
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
         <label style={{ fontSize: "12px", padding: "6px 12px", background: "#1A1A2E", color: "#fff", borderRadius: "8px", cursor: "pointer" }}>
-          PMX 모델 로드
+          PMX 모델
           <input id="pmx-input" type="file" accept=".pmx,.pmd" style={{ display: "none" }} />
         </label>
         <label style={{ fontSize: "12px", padding: "6px 12px", background: "#4A90C4", color: "#fff", borderRadius: "8px", cursor: "pointer" }}>
-          VMD 모션 로드
+          VMD 모션
           <input id="vmd-input" type="file" accept=".vmd" style={{ display: "none" }} />
         </label>
         <label style={{ fontSize: "12px", padding: "6px 12px", background: "#2a2a4e", color: "#fff", borderRadius: "8px", cursor: "pointer" }}>
-          GLB 모델 로드
+          GLB 모델
           <input id="glb-input" type="file" accept=".glb,.gltf" style={{ display: "none" }} />
         </label>
+        <label style={{ fontSize: "12px", padding: "6px 12px", background: "#8B5CF6", color: "#fff", borderRadius: "8px", cursor: "pointer" }}>
+          WAV 음악
+          <input id="wav-input" type="file" accept=".wav,.mp3,.ogg" style={{ display: "none" }} />
+        </label>
+        <button id="play-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#22C55E", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer" }}>
+          ▶ 재생
+        </button>
+        <button id="stop-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#EF4444", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer" }}>
+          ■ 정지
+        </button>
       </div>
+      <audio id="bgm-audio" style={{ display: "none" }} />
       <div style={{ fontSize: "12px", color: "#6B7280" }}>
         터치 드래그: 회전 | 핀치: 줌 | 두 손가락 드래그: 이동
       </div>
@@ -126,12 +137,14 @@ export default function MMDPage() {
       mmdManager.onError = function(url) {
         addLog('리소스 스킵: ' + url.split('/').pop());
       };
-      // blob URL에서 텍스처 경로를 해석 못하므로 1x1 투명 픽셀로 대체
+      // 백슬래시→슬래시 변환, TGA→PNG 폴백
       mmdManager.setURLModifier(function(url) {
-        if (url.indexOf('blob:') === 0 && url.indexOf('.pmx') === -1 && url.indexOf('.pmd') === -1 && url.indexOf('.vmd') === -1) {
-          return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAABl0RVh0U29mdHdhcmUAcGFpbnQubmV0IDQuMC41ZYUyZQAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=';
+        var fixed = url.replace(/\\\\/g, '/');
+        // blob URL의 경우 텍스처 스킵
+        if (fixed.indexOf('blob:') === 0 && !fixed.match(/\\.(pmx|pmd|vmd)$/i)) {
+          return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==';
         }
-        return url;
+        return fixed;
       });
 
       helper = new THREE.MMDAnimationHelper();
@@ -153,91 +166,98 @@ export default function MMDPage() {
 
       var gltfLoader = new THREE.GLTFLoader();
       var mmdLoader = new THREE.MMDLoader(mmdManager);
-
-      // PMX 기본 모델 직접 로드
-      addLog('PMX 모델 로딩...');
       var pmxUrl = '/mmd/lovelive20141216/lovelive2/Kousaka_Honoka.pmx';
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', pmxUrl, true);
-      xhr.responseType = 'arraybuffer';
-      xhr.onprogress = function(e) {
-        if (e.total > 0) addLog('모델 로딩: ' + Math.round(e.loaded / e.total * 100) + '%');
-      };
-      xhr.onload = function() {
-        if (xhr.status !== 200) {
-          addLog('❌ PMX 파일 없음', 'red');
-          return;
+      var vmdUrl = '/mmd/dance.vmd';
+      var audioUrl = '/mmd/audio.wav';
+
+      // MMDLoader로 모델+모션+오디오 로드
+      addLog('PMX 모델 로딩 (MMDLoader)...');
+      mmdLoader.loadWithAnimation(pmxUrl, vmdUrl, function(mmd) {
+        currentModel = mmd.mesh;
+        scene.add(mmd.mesh);
+
+        helper.add(mmd.mesh, { animation: mmd.animation, physics: false });
+
+        var box = new THREE.Box3().setFromObject(mmd.mesh);
+        var center = box.getCenter(new THREE.Vector3());
+        var size = box.getSize(new THREE.Vector3());
+        controls.target.copy(center);
+        camera.position.set(center.x, center.y, center.z + size.y * 2.5);
+        controls.update();
+
+        addLog('✅ 모델+모션 로드 완료', 'lime');
+
+        // 오디오 로드 시도
+        var audioEl = document.getElementById('bgm-audio');
+        if (audioEl) {
+          audioEl.src = audioUrl;
+          addLog('오디오 준비 완료 (재생 버튼을 누르세요)');
         }
-        try {
-          var parser = new MMDParser.Parser();
-          var pmx = parser.parsePmx(xhr.response, true);
-          addLog('파싱 완료: 정점 ' + pmx.metadata.vertexCount);
+      }, function(p) {
+        if (p.total > 0) addLog('로딩: ' + Math.round(p.loaded / p.total * 100) + '%');
+      }, function(err) {
+        addLog('MMDLoader 실패, 커스텀 파서로 시도...', 'yellow');
+        // 커스텀 파서 폴백
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', pmxUrl, true);
+        xhr.responseType = 'arraybuffer';
+        xhr.onload = function() {
+          try {
+            var parser = new MMDParser.Parser();
+            var pmx = parser.parsePmx(xhr.response, true);
+            var geo = new THREE.BufferGeometry();
+            var positions = [], normals = [], uvs = [], indices = [];
 
-          var geo = new THREE.BufferGeometry();
-          var positions = [];
-          var normals = [];
-          var uvs = [];
-          var indices = [];
-
-          for (var i = 0; i < pmx.vertices.length; i++) {
-            var v = pmx.vertices[i];
-            positions.push(v.position[0], v.position[1], v.position[2]);
-            normals.push(v.normal[0], v.normal[1], v.normal[2]);
-            uvs.push(v.uv[0], v.uv[1]);
-          }
-          for (var i = 0; i < pmx.faces.length; i++) {
-            var face = pmx.faces[i];
-            indices.push(face.indices[0], face.indices[1], face.indices[2]);
-          }
-
-          geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-          geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-          geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-
-          var indexArray = new Uint32Array(indices);
-          geo.setIndex(new THREE.BufferAttribute(indexArray, 1));
-
-          // 머티리얼 그룹 설정
-          var materials = [];
-          var offset = 0;
-          for (var i = 0; i < pmx.materials.length; i++) {
-            var m = pmx.materials[i];
-            var d = m.diffuse || [0.8, 0.8, 0.8, 1.0];
-            var mat = new THREE.MeshPhongMaterial({
-              color: new THREE.Color(d[0], d[1], d[2]),
-              opacity: d[3],
-              transparent: d[3] < 1.0,
-              side: THREE.DoubleSide,
-              shininess: 20
-            });
-            if (m.ambient) {
-              mat.emissive = new THREE.Color(m.ambient[0] * 0.2, m.ambient[1] * 0.2, m.ambient[2] * 0.2);
+            for (var i = 0; i < pmx.vertices.length; i++) {
+              var v = pmx.vertices[i];
+              positions.push(v.position[0], v.position[1], v.position[2]);
+              normals.push(v.normal[0], v.normal[1], v.normal[2]);
+              uvs.push(v.uv[0], v.uv[1]);
             }
-            materials.push(mat);
-            var faceIndexCount = m.faceCount * 3;
-            geo.addGroup(offset, faceIndexCount, i);
-            offset += faceIndexCount;
+            for (var i = 0; i < pmx.faces.length; i++) {
+              var face = pmx.faces[i];
+              indices.push(face.indices[0], face.indices[1], face.indices[2]);
+            }
+
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+            geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            geo.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1));
+
+            var materials = [];
+            var offset = 0;
+            for (var i = 0; i < pmx.materials.length; i++) {
+              var m = pmx.materials[i];
+              var d = m.diffuse || [0.8, 0.8, 0.8, 1.0];
+              var mat = new THREE.MeshPhongMaterial({
+                color: new THREE.Color(d[0], d[1], d[2]),
+                opacity: d[3],
+                transparent: d[3] < 1.0,
+                side: THREE.DoubleSide
+              });
+              materials.push(mat);
+              geo.addGroup(offset, m.faceCount * 3, i);
+              offset += m.faceCount * 3;
+            }
+
+            geo.computeBoundingSphere();
+            var mesh = new THREE.Mesh(geo, materials);
+            currentModel = mesh;
+            scene.add(mesh);
+
+            var box = new THREE.Box3().setFromObject(mesh);
+            var center = box.getCenter(new THREE.Vector3());
+            controls.target.copy(center);
+            camera.position.set(center.x, center.y, center.z + 50);
+            controls.update();
+
+            addLog('✅ 커스텀 파서로 로드 완료 (텍스처 없음)', 'lime');
+          } catch(e) {
+            addLog('❌ 파싱 실패: ' + e.message, 'red');
           }
-
-          geo.computeBoundingSphere();
-          var mesh = new THREE.Mesh(geo, materials);
-          currentModel = mesh;
-          scene.add(mesh);
-
-          var box = new THREE.Box3().setFromObject(mesh);
-          var center = box.getCenter(new THREE.Vector3());
-          var size = box.getSize(new THREE.Vector3());
-          controls.target.copy(center);
-          camera.position.set(center.x, center.y, center.z + size.y * 2.5);
-          controls.update();
-
-          addLog('✅ PMX 모델 로드 완료 (' + pmx.materials.length + ' 머티리얼)', 'lime');
-        } catch(err) {
-          addLog('❌ PMX 파싱 실패: ' + err.message, 'red');
-        }
-      };
-      xhr.onerror = function() { addLog('❌ PMX 다운로드 실패', 'red'); };
-      xhr.send();
+        };
+        xhr.send();
+      });
 
       // PMX 파일 업로드 — parser로 직접 파싱
       document.getElementById('pmx-input').addEventListener('change', function(e) {
@@ -392,6 +412,36 @@ export default function MMDPage() {
           });
         };
         reader.readAsArrayBuffer(file);
+      });
+
+      // WAV 음악 업로드
+      document.getElementById('wav-input').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var audioEl = document.getElementById('bgm-audio');
+        var url = URL.createObjectURL(file);
+        audioEl.src = url;
+        addLog('✅ 음악 로드: ' + file.name, 'lime');
+      });
+
+      // 재생/정지
+      document.getElementById('play-btn').addEventListener('click', function() {
+        var audioEl = document.getElementById('bgm-audio');
+        if (audioEl.src) {
+          audioEl.play();
+          addLog('▶ 재생 시작');
+        }
+        // MMD 애니메이션도 리셋
+        if (helper.meshes && helper.meshes.length > 0) {
+          addLog('애니메이션 재생 중');
+        }
+      });
+
+      document.getElementById('stop-btn').addEventListener('click', function() {
+        var audioEl = document.getElementById('bgm-audio');
+        audioEl.pause();
+        audioEl.currentTime = 0;
+        addLog('■ 정지');
       });
 
       window.addEventListener('resize', function() {
