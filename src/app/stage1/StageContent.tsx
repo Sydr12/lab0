@@ -1,41 +1,422 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-export default function MMDPage() {
-  const scriptLoaded = useRef(false);
+export default function StageContent() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const initRef = useRef(false);
+  const [log, setLog] = useState<string[]>([]);
+  const logRef = useRef<string[]>([]);
+
+  const addLog = (msg: string, color?: string) => {
+    logRef.current = [...logRef.current.slice(-15), msg];
+    setLog([...logRef.current]);
+  };
 
   useEffect(() => {
-    if (scriptLoaded.current) return;
-    scriptLoaded.current = true;
+    if (!canvasRef.current || initRef.current) return;
+    initRef.current = true;
 
-    const el = document.getElementById("stage-script");
-    if (el) {
-      const s = document.createElement("script");
-      s.textContent = el.textContent || "";
-      document.body.appendChild(s);
-    }
+    const canvas = canvasRef.current;
+
+    (async () => {
+      try {
+        addLog("Babylon.js 초기화...");
+
+        const { Engine, Scene, ArcRotateCamera, Vector3, HemisphericLight, DirectionalLight, Color3, Color4, MeshBuilder, StandardMaterial } = await import("@babylonjs/core");
+        await import("@babylonjs/loaders");
+        const { MmdRuntime, MmdPhysics, MmdAmmoJSPlugin, MmdAmmoPhysics } = await import("babylon-mmd");
+        const { SceneLoader } = await import("@babylonjs/core/Loading/sceneLoader");
+        const { PmxLoader } = await import("babylon-mmd/esm/Loader/pmxLoader");
+        const { VmdLoader } = await import("babylon-mmd/esm/Loader/vmdLoader");
+
+        addLog("모듈 로드 완료");
+
+        // 엔진
+        const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, adaptToDeviceRatio: true });
+        const scene = new Scene(engine);
+        scene.clearColor = new Color4(0.1, 0.1, 0.15, 1);
+
+        // PMX 로더 등록
+        SceneLoader.RegisterPlugin(new PmxLoader());
+
+        // 카메라
+        const camera = new ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 2.5, 45, new Vector3(0, 10, 0), scene);
+        camera.attachControl(canvas, true);
+        camera.lowerRadiusLimit = 5;
+        camera.upperRadiusLimit = 100;
+
+        // 조명
+        const hemiLight = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
+        hemiLight.intensity = 0.5;
+        const dirLight = new DirectionalLight("dir", new Vector3(0, -1, 1), scene);
+        dirLight.intensity = 0.6;
+        dirLight.position = new Vector3(0, 20, -10);
+
+        // 바닥
+        const ground = MeshBuilder.CreateGround("ground", { width: 60, height: 60 }, scene);
+        const groundMat = new StandardMaterial("groundMat", scene);
+        groundMat.diffuseColor = new Color3(0.15, 0.15, 0.25);
+        groundMat.alpha = 0.3;
+        ground.material = groundMat;
+
+        // 물리 엔진 (babylon-mmd 내장 ammo)
+        let physicsReady = false;
+        let ammoInstance: any = null;
+        try {
+          const ammoModule = await import("babylon-mmd/esm/Runtime/Physics/External/ammo.wasm");
+          ammoInstance = await ammoModule.default();
+          physicsReady = true;
+          addLog("ammo.wasm 로드 완료");
+        } catch (e: any) {
+          addLog("ammo 실패: " + e.message);
+        }
+
+        // 렌더 루프
+        engine.runRenderLoop(() => scene.render());
+        window.addEventListener("resize", () => engine.resize());
+
+        addLog("씬 준비 완료");
+
+        // songDB 로드
+        let songDB: any = {};
+        try {
+          const res = await fetch("/mmd/songdb.json");
+          songDB = await res.json();
+          const artistSelect = document.getElementById("artist-select") as HTMLSelectElement;
+          if (artistSelect) {
+            artistSelect.innerHTML = '<option value="">-- 가수 --</option>';
+            Object.keys(songDB).sort().forEach((key) => {
+              const opt = document.createElement("option");
+              opt.value = key;
+              opt.textContent = songDB[key].name;
+              artistSelect.appendChild(opt);
+            });
+          }
+          addLog("songDB: " + Object.keys(songDB).length + " 아티스트");
+        } catch (e) {
+          addLog("songDB 로드 실패");
+        }
+
+        // modelDB
+        const modelDB: Record<string, Record<string, string>> = {
+          honoka: { Default: "/mmd/models/lovelive20141216/lovelive2/Kousaka_Honoka.pmx" },
+          zoey: { Default: "/mmd/models/zoey/Zoey.pmx" },
+          rumi: { Default: "/mmd/models/rumi/Rumi.pmx" },
+          mira: { Default: "/mmd/models/mira/Mira.pmx" },
+          kizuna: { Normal: "/mmd/models/kizuna_normal/kizuna_normal.pmx", Anime: "/mmd/models/kizuna_anime/kizuna_anime.pmx", Live: "/mmd/models/kizuna_live/kizuna_live.pmx" },
+          yor: { Dress: "/mmd/models/yor_forger/yor_dress.pmx", Base: "/mmd/models/yor_forger/yor_base.pmx" },
+          nezuko: { Base: "/mmd/models/nezuko/nezuko_base.pmx", Kimono: "/mmd/models/nezuko/nezuko.pmx", Child: "/mmd/models/nezuko/nezuko_child.pmx" },
+          anya: { Default: "/mmd/models/anya_forger/anya.pmx" },
+          tda_cn: { Default: "/mmd/models/tda_cn/tda.pmx" },
+          ming: { Default: "/mmd/models/ming/ming.pmx" },
+          pauline: { NSFW: "/mmd/models/pauline/pauline_nsfw.pmx", Dress: "/mmd/models/pauline/pauline_dress.pmx", Suit: "/mmd/models/pauline/pauline_suit.pmx" },
+          sakura: { Default: "/mmd/models/sakura/sakura.pmx" },
+          chloe: { Default: "/mmd/models/chloe/chloe.pmx" },
+          kaiji: { Default: "/mmd/models/kaiji/Tatsuta_Kaiji_Comprehensive_better.pmx", Angel: "/mmd/models/kaiji/Tatsuta_Kaiji_Angel_Comprehensive_better.pmx" },
+          mash: { "1st": "/mmd/models/mash/mash_1st.pmx", "2nd": "/mmd/models/mash/mash_2nd.pmx", "3rd": "/mmd/models/mash/mash_3rd.pmx", Inner: "/mmd/models/mash/mash_inner.pmx" },
+          eleanor: { Day: "/mmd/models/eleanor/eleanor_day.pmx", Night: "/mmd/models/eleanor/eleanor_night.pmx" },
+        };
+
+        // 상태
+        let mmdRuntime: any = null;
+        let currentModel: any = null;
+        let currentMeshes: any[] = [];
+        let stageMeshes: any[] = [];
+        let audioEl = document.getElementById("bgm-audio") as HTMLAudioElement;
+        let isPlaying = false;
+
+        // 모델 선택 → 버전 갱신
+        const modelSelect = document.getElementById("model-select") as HTMLSelectElement;
+        const versionSelect = document.getElementById("version-select") as HTMLSelectElement;
+
+        modelSelect?.addEventListener("change", () => {
+          if (!versionSelect) return;
+          versionSelect.innerHTML = '<option value="">-- 버전 --</option>';
+          const versions = modelDB[modelSelect.value];
+          if (versions) {
+            Object.keys(versions).forEach((v) => {
+              const opt = document.createElement("option");
+              opt.value = versions[v];
+              opt.textContent = v;
+              versionSelect.appendChild(opt);
+            });
+            if (Object.keys(versions).length === 1) {
+              versionSelect.value = versions[Object.keys(versions)[0]];
+            }
+          }
+        });
+
+        // 가수 선택 → 곡 갱신
+        const artistSelect = document.getElementById("artist-select") as HTMLSelectElement;
+        const songSelect = document.getElementById("song-select") as HTMLSelectElement;
+
+        artistSelect?.addEventListener("change", () => {
+          if (!songSelect) return;
+          songSelect.innerHTML = '<option value="">-- 곡 --</option>';
+          const artist = songDB[artistSelect.value];
+          if (artist) {
+            Object.keys(artist.songs).forEach((key) => {
+              const opt = document.createElement("option");
+              opt.value = key;
+              opt.textContent = artist.songs[key].name;
+              songSelect.appendChild(opt);
+            });
+          }
+        });
+
+        // 모델 로드
+        async function loadModel(pmxPath: string) {
+          addLog("모델 로딩: " + pmxPath.split("/").pop());
+          try {
+            // 기존 모델 제거
+            if (currentModel) {
+              try { mmdRuntime?.destroyMmdModel(currentModel); } catch (e) {}
+              currentModel = null;
+            }
+            currentMeshes.forEach((m: any) => { try { m.dispose(); } catch(e) {} });
+            currentMeshes = [];
+
+            const dir = pmxPath.substring(0, pmxPath.lastIndexOf("/") + 1);
+            const file = pmxPath.split("/").pop()!;
+            const result = await SceneLoader.ImportMeshAsync("", dir, file, scene);
+            currentMeshes = result.meshes;
+
+            if (!mmdRuntime) {
+              if (physicsReady) {
+                try {
+                  scene.enablePhysics(new Vector3(0, -30, 0), new MmdAmmoJSPlugin(true, ammoInstance));
+                  mmdRuntime = new MmdRuntime(scene, new MmdAmmoPhysics(scene));
+                  addLog("물리 엔진 적용");
+                } catch (pe: any) {
+                  addLog("물리 실패, 물리 없이 진행: " + pe.message);
+                  mmdRuntime = new MmdRuntime(scene);
+                }
+              } else {
+                mmdRuntime = new MmdRuntime(scene);
+              }
+              mmdRuntime.register(scene);
+            }
+
+            currentModel = mmdRuntime.createMmdModel(result.meshes[0]);
+            camera.target = result.meshes[0].position.add(new Vector3(0, 10, 0));
+
+            addLog("✅ 모델 로드 완료", "lime");
+          } catch (e: any) {
+            addLog("❌ 모델 로드 실패: " + e.message, "red");
+          }
+        }
+
+        // 카메라 상태
+        let cameraEnabled = false;
+        let currentCamPath: string | null = null;
+        const camBtn = document.getElementById("cam-btn");
+
+        // 곡 로드
+        async function loadSong(vmdPath: string, mp3Path: string | null, camPath: string | null) {
+          if (!currentModel) {
+            addLog("❌ 먼저 모델을 로드하세요", "red");
+            return;
+          }
+          addLog("VMD 로딩...");
+          try {
+            const vmdLoader = new VmdLoader(scene);
+            const animation = await vmdLoader.loadAsync("motion", vmdPath);
+
+            const handle = currentModel.createRuntimeAnimation(animation);
+            currentModel.setRuntimeAnimation(handle);
+
+            mmdRuntime.seekAnimation(0, true);
+            isPlaying = false;
+
+            if (mp3Path && audioEl) {
+              audioEl.src = mp3Path;
+              audioEl.currentTime = 0;
+            }
+
+            // 카메라 모션
+            currentCamPath = camPath;
+            cameraEnabled = false;
+            if (camBtn) {
+              if (camPath) {
+                camBtn.style.display = "";
+                camBtn.textContent = "CAM ON";
+                (camBtn as HTMLButtonElement).style.background = "#F59E0B";
+              } else {
+                camBtn.style.display = "none";
+              }
+            }
+
+            addLog("✅ 모션+음악 로드 완료" + (camPath ? " (카메라 있음)" : ""), "lime");
+          } catch (e: any) {
+            addLog("❌ VMD 로드 실패: " + e.message, "red");
+          }
+        }
+
+        // 카메라 ON/OFF
+        let mmdCamera: any = null;
+
+        camBtn?.addEventListener("click", async () => {
+          if (!currentCamPath || !mmdRuntime) return;
+
+          if (!cameraEnabled) {
+            try {
+              const mmdCameraModule = await import("babylon-mmd/esm/Runtime/mmdCamera");
+              await import("babylon-mmd/esm/Runtime/Animation/mmdRuntimeCameraAnimation");
+
+              mmdCamera = new mmdCameraModule.MmdCamera("MmdCamera", new Vector3(0, 10, 0), scene);
+
+              const vmdLoader = new VmdLoader(scene);
+              const camAnimation = await vmdLoader.loadAsync("camera", currentCamPath);
+
+              const camHandle = mmdCamera.createRuntimeAnimation(camAnimation);
+              mmdCamera.setRuntimeAnimation(camHandle);
+              mmdRuntime.addAnimatable(mmdCamera);
+
+              scene.activeCamera = mmdCamera;
+              camera.detachControl();
+
+              cameraEnabled = true;
+              camBtn!.textContent = "CAM OFF";
+              (camBtn as HTMLButtonElement).style.background = "#EF4444";
+              addLog("카메라 모션 ON");
+            } catch (e: any) {
+              addLog("카메라 실패: " + e.message, "red");
+            }
+          } else {
+            if (mmdCamera) {
+              try { mmdRuntime.removeAnimatable(mmdCamera); } catch (e) {}
+              mmdCamera.dispose();
+              mmdCamera = null;
+            }
+            scene.activeCamera = camera;
+            camera.attachControl(canvas, true);
+            cameraEnabled = false;
+            camBtn!.textContent = "CAM ON";
+            (camBtn as HTMLButtonElement).style.background = "#F59E0B";
+            addLog("카메라 모션 OFF");
+          }
+        });
+
+        // 버튼 이벤트
+        // 스테이지 로드
+        document.getElementById("stage-load-btn")?.addEventListener("click", async () => {
+          const stageUrl = (document.getElementById("stage-select") as HTMLSelectElement)?.value;
+
+          // 기존 스테이지 제거
+          stageMeshes.forEach((m: any) => { try { m.dispose(); } catch(e) {} });
+          stageMeshes = [];
+
+          if (!stageUrl || stageUrl === "none") {
+            ground.setEnabled(true);
+            addLog("스테이지 제거");
+            return;
+          }
+
+          ground.setEnabled(false);
+          addLog("스테이지 로딩...");
+
+          try {
+            const stagePresets: Record<string, string[]> = {
+              moon_all: [
+                "/mmd/models/stages/moon/moon_main.pmx",
+                "/mmd/models/stages/moon/moon_tree.pmx",
+                "/mmd/models/stages/moon/moon_lantern.pmx",
+                "/mmd/models/stages/moon/moon_flower.pmx",
+              ],
+              neon_all: [
+                "/mmd/models/stages/neon/neon_main.pmx",
+                "/mmd/models/stages/neon/neon_block_big.pmx",
+                "/mmd/models/stages/neon/neon_block_small.pmx",
+              ],
+            };
+
+            const urls = stagePresets[stageUrl] || [stageUrl];
+
+            for (const url of urls) {
+              const dir = url.substring(0, url.lastIndexOf("/") + 1);
+              const file = url.split("/").pop()!;
+              const result = await SceneLoader.ImportMeshAsync("", dir, file, scene);
+              stageMeshes.push(...result.meshes);
+              addLog("  로드: " + file);
+            }
+            addLog("✅ 스테이지 로드 완료", "lime");
+          } catch (e: any) {
+            addLog("❌ 스테이지 실패: " + e.message, "red");
+            ground.setEnabled(true);
+          }
+        });
+
+        document.getElementById("model-load-btn")?.addEventListener("click", () => {
+          const pmx = versionSelect?.value;
+          if (!pmx) { addLog("❌ 모델을 선택하세요"); return; }
+          loadModel(pmx);
+        });
+
+        document.getElementById("load-btn")?.addEventListener("click", () => {
+          const artist = artistSelect?.value;
+          const songKey = songSelect?.value;
+          if (!artist || !songKey) { addLog("❌ 곡을 선택하세요"); return; }
+          const song = songDB[artist].songs[songKey];
+          loadSong(song.vmd, song.mp3, song.cam || null);
+        });
+
+        document.getElementById("play-btn")?.addEventListener("click", () => {
+          if (!mmdRuntime) return;
+          isPlaying = true;
+          mmdRuntime.playAnimation();
+          if (audioEl?.src) audioEl.play();
+          addLog("▶ 재생");
+        });
+
+        document.getElementById("stop-btn")?.addEventListener("click", () => {
+          if (!mmdRuntime) return;
+          isPlaying = false;
+          mmdRuntime.pauseAnimation();
+          if (audioEl) { audioEl.pause(); audioEl.currentTime = 0; }
+          mmdRuntime.seekAnimation(0);
+          addLog("■ 정지");
+        });
+
+        audioEl?.addEventListener("ended", () => {
+          isPlaying = false;
+          if (mmdRuntime) mmdRuntime.pauseAnimation();
+          addLog("■ 재생 완료");
+        });
+
+      } catch (e: any) {
+        addLog("❌ 초기화 실패: " + e.message);
+        console.error(e);
+      }
+    })();
   }, []);
 
   return (
     <div className="space-y-4">
-      <div
-        id="three-container"
-        style={{ width: "100%", height: "400px", borderRadius: "16px", overflow: "hidden", border: "1px solid #E8ECF0", position: "relative" }}
+      <canvas
+        ref={canvasRef}
+        className="w-full rounded-2xl border border-border"
+        style={{ height: "400px" }}
       />
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
         <select id="model-select" style={{ fontSize: "12px", padding: "4px 8px", borderRadius: "8px", background: "#2a2a4e", color: "#fff", border: "1px solid #444" }}>
           <option value="">-- 캐릭터 --</option>
-          <option value="honoka">호노카 (러브라이브)</option>
-          <option value="yor">요르 (스파이패밀리)</option>
-          <option value="nezuko">네즈코 (귀멸의 칼날)</option>
-          <option value="anya">아냐 (스파이패밀리)</option>
-          <option value="zoey">Zoey (HUNTRIX)</option>
-          <option value="rumi">Rumi (HUNTRIX)</option>
-          <option value="mira">Mira (HUNTRIX)</option>
-          <option value="tda_cn">TDA (CN)</option>
-          <option value="ming">Ming (카라피큐)</option>
+          <option value="honoka">호노카</option>
+          <option value="zoey">Zoey</option>
+          <option value="rumi">Rumi</option>
+          <option value="mira">Mira</option>
           <option value="kizuna">키즈나아이</option>
+          <option value="yor">요르</option>
+          <option value="nezuko">네즈코</option>
+          <option value="anya">아냐</option>
+          <option value="tda_cn">TDA CN</option>
+          <option value="ming">Ming</option>
+          <option value="pauline">Pauline</option>
+          <option value="sakura">Sakura</option>
+          <option value="chloe">Chloe</option>
+          <option value="kaiji">Kaiji Tatsuta</option>
+          <option value="mash">Mash (FGO)</option>
+          <option value="eleanor">Eleanor</option>
         </select>
         <select id="version-select" style={{ fontSize: "12px", padding: "4px 8px", borderRadius: "8px", background: "#2a2a4e", color: "#fff", border: "1px solid #444" }}>
           <option value="">-- 버전 --</option>
@@ -52,767 +433,46 @@ export default function MMDPage() {
         <button id="load-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#4A90C4", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer" }}>
           곡 로드
         </button>
+        <select id="stage-select" style={{ fontSize: "12px", padding: "4px 8px", borderRadius: "8px", background: "#2a2a4e", color: "#fff", border: "1px solid #444" }}>
+          <option value="">-- 스테이지 --</option>
+          <option value="none">없음 (그리드)</option>
+          <option value="moon_all">Moon 전체 (달밤)</option>
+          <option value="/mmd/models/stages/moon/moon_main.pmx">Moon 본체</option>
+          <option value="/mmd/models/stages/moon/moon_tree.pmx">Moon 나무</option>
+          <option value="/mmd/models/stages/moon/moon_lantern.pmx">Moon 등불</option>
+          <option value="/mmd/models/stages/moon/moon_flower.pmx">Moon 꽃</option>
+          <option value="neon_all">Neon 전체 (네온)</option>
+          <option value="/mmd/models/stages/neon/neon_main.pmx">Neon 본체</option>
+          <option value="/mmd/models/stages/neon/neon_block_big.pmx">Neon 블록 대</option>
+          <option value="/mmd/models/stages/neon/neon_block_small.pmx">Neon 블록 소</option>
+        </select>
+        <button id="stage-load-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#8B5CF6", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer" }}>
+          스테이지
+        </button>
+        <button id="cam-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#F59E0B", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer", display: "none" }}>
+          CAM ON
+        </button>
         <button id="play-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#22C55E", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer" }}>
           ▶ 재생
         </button>
         <button id="stop-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#EF4444", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer" }}>
           ■ 정지
         </button>
-        <button id="cam-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#666", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer", display: "none" }}>
-          CAM OFF
-        </button>
-      </div>
-      {/* 수동 업로드 버튼 — 비활성화 */}
-      <div style={{ display: "none" }}>
-        <input id="pmx-input" type="file" accept=".pmx,.pmd" />
-        <input id="vmd-input" type="file" accept=".vmd" />
-        <input id="glb-input" type="file" accept=".glb,.gltf" />
-        <input id="wav-input" type="file" accept=".wav,.mp3,.ogg" />
       </div>
       <audio id="bgm-audio" style={{ display: "none" }} />
       <div style={{ fontSize: "12px", color: "#6B7280" }}>
         터치 드래그: 회전 | 핀치: 줌 | 두 손가락 드래그: 이동
       </div>
       <div
-        id="log-panel"
-        style={{ background: "#000", borderRadius: "12px", padding: "12px", fontSize: "12px", fontFamily: "monospace", color: "#aaa", maxHeight: "160px", overflow: "auto" }}
-      />
-      <script
-        id="stage-script"
-        dangerouslySetInnerHTML={{
-          __html: `
-(function() {
-  var logEl = document.getElementById('log-panel');
-  function addLog(msg, color) {
-    var div = document.createElement('div');
-    div.textContent = msg;
-    div.style.color = color || '#aaa';
-    logEl.appendChild(div);
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-
-  // 모델 데이터베이스
-  var modelDB = {
-    honoka: {
-      name: '호노카 (러브라이브)',
-      versions: {
-        default: { name: 'Default', pmx: '/mmd/models/lovelive20141216/lovelive2/Kousaka_Honoka.pmx' }
-      }
-    },
-    yor: {
-      name: '요르 (스파이패밀리)',
-      versions: {
-        dress: { name: 'Dress', pmx: '/mmd/models/yor_forger/yor_dress.pmx' },
-        base: { name: 'Base', pmx: '/mmd/models/yor_forger/yor_base.pmx' }
-      }
-    },
-    nezuko: {
-      name: '네즈코 (귀멸의 칼날)',
-      versions: {
-        default: { name: 'Default', pmx: '/mmd/models/nezuko/nezuko.pmx' },
-        base: { name: 'Base', pmx: '/mmd/models/nezuko/nezuko_base.pmx' },
-        child: { name: 'Child', pmx: '/mmd/models/nezuko/nezuko_child.pmx' }
-      }
-    },
-    anya: {
-      name: '아냐 (스파이패밀리)',
-      versions: {
-        default: { name: 'Default', pmx: '/mmd/models/anya_forger/anya.pmx' }
-      }
-    },
-    zoey: {
-      name: 'Zoey (HUNTRIX)',
-      versions: {
-        default: { name: 'Default', pmx: '/mmd/models/zoey/Zoey.pmx' }
-      }
-    },
-    rumi: {
-      name: 'Rumi (HUNTRIX)',
-      versions: {
-        default: { name: 'Default', pmx: '/mmd/models/rumi/Rumi.pmx' }
-      }
-    },
-    mira: {
-      name: 'Mira (HUNTRIX)',
-      versions: {
-        default: { name: 'Default', pmx: '/mmd/models/mira/Mira.pmx' }
-      }
-    },
-    tda_cn: {
-      name: 'TDA (CN)',
-      versions: {
-        default: { name: 'Default', pmx: '/mmd/models/tda_cn/tda.pmx' }
-      }
-    },
-    ming: {
-      name: 'Ming (카라피큐)',
-      versions: {
-        default: { name: 'Default', pmx: '/mmd/models/ming/ming.pmx' }
-      }
-    },
-    kizuna: {
-      name: '키즈나아이',
-      versions: {
-        normal: { name: 'Normal', pmx: '/mmd/models/kizuna_normal/kizuna_normal.pmx' },
-        anime: { name: 'Anime', pmx: '/mmd/models/kizuna_anime/kizuna_anime.pmx' },
-        live: { name: 'Live', pmx: '/mmd/models/kizuna_live/kizuna_live.pmx' }
-      }
-    }
-  };
-
-  // 곡 데이터베이스 (외부 JSON에서 로드)
-  var songDB = {};
-  fetch('/mmd/songdb.json').then(function(r) { return r.json(); }).then(function(data) {
-    songDB = data;
-    // 아티스트 드롭박스 채우기
-    var artistSelect = document.getElementById('artist-select');
-    artistSelect.innerHTML = '<option value="">-- 가수 --</option>';
-    Object.keys(songDB).sort().forEach(function(key) {
-      var opt = document.createElement('option');
-      opt.value = key;
-      opt.textContent = songDB[key].name;
-      artistSelect.appendChild(opt);
-    });
-    addLog('songDB 로드: ' + Object.keys(songDB).length + '개 아티스트');
-  });
-
-  // 가수 선택 → 곡 목록 갱신
-  document.getElementById('artist-select').addEventListener('change', function(e) {
-    var songSelect = document.getElementById('song-select');
-    songSelect.innerHTML = '<option value="">-- 곡 --</option>';
-    var artist = songDB[e.target.value];
-    if (artist) {
-      Object.keys(artist.songs).forEach(function(key) {
-        var opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = artist.songs[key].name;
-        songSelect.appendChild(opt);
-      });
-    }
-  });
-
-  addLog('초기화 시작...');
-
-  var scripts = [
-    'https://cdn.jsdelivr.net/npm/ammo.js@0.0.10/ammo.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js',
-    'https://cdn.jsdelivr.net/npm/mmd-parser/build/mmdparser.min.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/TGALoader.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MMDLoader.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/CCDIKSolver.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/MMDPhysics.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/MMDAnimationHelper.js',
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/effects/OutlineEffect.js'
-  ];
-
-  var loaded = 0;
-  function loadNext() {
-    if (loaded >= scripts.length) {
-      addLog('모든 모듈 로드 완료');
-      if (typeof Ammo === 'function') {
-        addLog('Ammo 초기화중...');
-        Ammo().then(function(AmmoLib) {
-          window.Ammo = AmmoLib;
-          addLog('Ammo 초기화 완료');
-          startScene();
-        });
-        return;
-      }
-      startScene();
-      return;
-    }
-    var s = document.createElement('script');
-    var name = scripts[loaded].split('/').pop();
-    s.src = scripts[loaded];
-    s.onload = function() {
-      addLog(name + ' 로드');
-      loaded++;
-      loadNext();
-    };
-    s.onerror = function() {
-      addLog('❌ ' + name + ' 로드 실패', 'red');
-      loaded++;
-      loadNext();
-    };
-    document.head.appendChild(s);
-  }
-  loadNext();
-
-  var scene, camera, renderer, controls, mixer, helper, clock, currentModel;
-
-  function startScene() {
-    try {
-      var container = document.getElementById('three-container');
-      var width = container.clientWidth;
-      var height = container.clientHeight;
-
-      scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x1a1a2e);
-
-      camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 500);
-      camera.position.set(0, 10, 60);
-
-      renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(width, height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      container.appendChild(renderer.domElement);
-
-      var effect = renderer;
-
-      controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.target.set(0, 1, 0);
-      controls.enableDamping = true;
-
-      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-      var dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-      dirLight.position.set(0, 10, 10);
-      scene.add(dirLight);
-      var fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-      fillLight.position.set(-5, 5, 5);
-      scene.add(fillLight);
-      var backLight = new THREE.DirectionalLight(0x6cb4ee, 0.15);
-      backLight.position.set(0, 5, -5);
-      scene.add(backLight);
-
-      // 바닥
-      var floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(60, 60),
-        new THREE.MeshStandardMaterial({ color: 0x2a2a4e, roughness: 0.8, transparent: true, opacity: 0.3 })
-      );
-      floor.rotation.x = -Math.PI / 2;
-      floor.receiveShadow = true;
-      scene.add(floor);
-
-      var grid = new THREE.GridHelper(60, 30, 0x444488, 0x333366);
-      grid.position.y = 0.01;
-      scene.add(grid);
-
-      // 뒷벽
-      var backWall = new THREE.Mesh(
-        new THREE.PlaneGeometry(60, 40),
-        new THREE.MeshStandardMaterial({ color: 0x222244, roughness: 0.9, transparent: true, opacity: 0.3 })
-      );
-      backWall.position.set(0, 20, -30);
-      scene.add(backWall);
-
-      // 뒷벽 앨범 커버
-      var coverPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(15, 15),
-        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
-      );
-      coverPlane.position.set(0, 20, -29.9);
-      scene.add(coverPlane);
-
-      function setCoverImage(coverUrl) {
-        if (!coverUrl) {
-          coverPlane.material.opacity = 0;
-          coverPlane.material.needsUpdate = true;
-          return;
-        }
-        var texLoader = new THREE.TextureLoader();
-        texLoader.load(coverUrl, function(tex) {
-          tex.encoding = THREE.sRGBEncoding;
-          coverPlane.material.map = tex;
-          coverPlane.material.opacity = 0.8;
-          coverPlane.material.needsUpdate = true;
-        });
-      }
-
-      // 좌벽
-      var leftWall = new THREE.Mesh(
-        new THREE.PlaneGeometry(60, 40),
-        new THREE.MeshStandardMaterial({ color: 0x1e1e3e, roughness: 0.9, transparent: true, opacity: 0.3 })
-      );
-      leftWall.rotation.y = Math.PI / 2;
-      leftWall.position.set(-30, 20, 0);
-      scene.add(leftWall);
-
-      // 우벽
-      var rightWall = new THREE.Mesh(
-        new THREE.PlaneGeometry(60, 40),
-        new THREE.MeshStandardMaterial({ color: 0x1e1e3e, roughness: 0.9, transparent: true, opacity: 0.3 })
-      );
-      rightWall.rotation.y = -Math.PI / 2;
-      rightWall.position.set(30, 20, 0);
-      scene.add(rightWall);
-
-      // 텍스처 로드 실패를 무시하는 LoadingManager
-      var mmdManager = new THREE.LoadingManager();
-      mmdManager.onError = function(url) {
-        addLog('리소스 스킵: ' + url.split('/').pop());
-      };
-      // 백슬래시→슬래시 변환
-      mmdManager.setURLModifier(function(url) {
-        var fixed = url.split(String.fromCharCode(92)).join('/');
-        if (fixed.indexOf('blob:') === 0 && fixed.indexOf('.pmx') === -1 && fixed.indexOf('.pmd') === -1 && fixed.indexOf('.vmd') === -1) {
-          return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==';
-        }
-        // 기본 toon 텍스처를 공통 경로에서 로드
-        var toonMatch = fixed.match(/toon0[0-9]\.bmp$|toon10\.bmp$/);
-        if (toonMatch && fixed.indexOf('/mmd/toon/') === -1) {
-          return '/mmd/toon/' + toonMatch[0];
-        }
-        return fixed;
-      });
-      // 5초 타임아웃으로 로드 실패 방지
-      var loadTimeout = null;
-
-      helper = new THREE.MMDAnimationHelper();
-      clock = new THREE.Clock();
-      mixer = null;
-
-      var isPlaying = false;
-
-      function animate() {
-        requestAnimationFrame(animate);
-        var delta = clock.getDelta();
-        if (isPlaying) {
-          if (helper.meshes && helper.meshes.length > 0) {
-            helper.update(delta);
-          }
-          if (mixer) mixer.update(delta);
-          if (window._ikSolver) window._ikSolver.update();
-        }
-        controls.update();
-        effect.render(scene, camera);
-      }
-      animate();
-      addLog('렌더링 시작됨');
-
-      var gltfLoader = new THREE.GLTFLoader();
-      var mmdLoader = new THREE.MMDLoader(mmdManager);
-      var pmxUrl = modelDB.honoka.versions.default.pmx;
-      var currentVmdUrl = '/mmd/songs/emon/shake_it/emon-shake_it.vmd';
-      var currentMp3Url = '/mmd/songs/emon/shake_it/emon-shake_it.mp3';
-
-      // 모델 로드 함수
-      function loadModel(pmxPath, callback) {
-        isPlaying = false;
-        if (currentModel) {
-          scene.remove(currentModel);
-          if (helper.meshes && helper.meshes.length > 0) {
-            try { helper.remove(currentModel); } catch(e) {}
-          }
-          currentModel = null;
-          mixer = null;
-          helper = new THREE.MMDAnimationHelper();
-        }
-        addLog('모델 로딩: ' + pmxPath.split('/').pop());
-        mmdLoader.load(pmxPath, function(mesh) {
-          currentModel = mesh;
-          scene.add(mesh);
-          var box = new THREE.Box3().setFromObject(mesh);
-          var center = box.getCenter(new THREE.Vector3());
-          var size = box.getSize(new THREE.Vector3());
-          controls.target.copy(center);
-          camera.position.set(center.x, center.y, center.z + size.y * 2.5);
-          controls.update();
-          var box = new THREE.Box3().setFromObject(mesh);
-          var center = box.getCenter(new THREE.Vector3());
-          var size = box.getSize(new THREE.Vector3());
-          addLog('크기: ' + size.x.toFixed(1) + 'x' + size.y.toFixed(1) + 'x' + size.z.toFixed(1));
-
-          // 비정상적으로 큰 모델은 상단부만 보이게
-          if (size.y > 100) {
-            controls.target.set(0, 10, 0);
-            camera.position.set(0, 10, 40);
-          } else {
-            controls.target.copy(center);
-            camera.position.set(center.x, center.y, center.z + size.y * 2.5);
-          }
-          controls.update();
-          // 뿌연 모델 보정
-          if (mesh.material) {
-            var mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-            mats.forEach(function(m) {
-              if (m.color && m.color.r > 0.85) {
-                m.color.multiplyScalar(0.65);
-              }
-              if (m.emissive) m.emissive.setScalar(0);
-              if (m.gradientMap) m.gradientMap = null;
-              m.needsUpdate = true;
-            });
-          }
-          addLog('✅ 모델 로드 완료', 'lime');
-          if (callback) callback(mesh);
-        }, function(p) {
-          if (p.total > 0) addLog('PMX: ' + Math.round(p.loaded / p.total * 100) + '%');
-        }, function(err) {
-          addLog('❌ 모델 로드 실패: ' + (err.message || err), 'red');
-        });
-      }
-
-      // 모델 선택 → 버전 목록 갱신
-      document.getElementById('model-select').addEventListener('change', function(e) {
-        var versionSelect = document.getElementById('version-select');
-        versionSelect.innerHTML = '<option value="">-- 버전 --</option>';
-        var model = modelDB[e.target.value];
-        if (model) {
-          var keys = Object.keys(model.versions);
-          keys.forEach(function(key) {
-            var opt = document.createElement('option');
-            opt.value = key;
-            opt.textContent = model.versions[key].name;
-            versionSelect.appendChild(opt);
-          });
-          // 버전이 1개면 자동 선택
-          if (keys.length === 1) {
-            versionSelect.value = keys[0];
-          }
-        }
-      });
-
-      var cameraAnimation = null;
-      var cameraEnabled = false;
-      var savedCameraPos = null;
-      var savedCameraTarget = null;
-
-      // 카메라 모션 로드
-      function loadCamera(camUrl) {
-        if (!camUrl) {
-          document.getElementById('cam-btn').style.display = 'none';
-          cameraAnimation = null;
-          return;
-        }
-        addLog('카메라 모션 로딩...');
-        mmdLoader.loadAnimation(camUrl, camera, function(animation) {
-          cameraAnimation = animation;
-          document.getElementById('cam-btn').style.display = '';
-          document.getElementById('cam-btn').textContent = 'CAM ON';
-          document.getElementById('cam-btn').style.background = '#F59E0B';
-          addLog('✅ 카메라 모션 로드 완료', 'lime');
-        }, null, function(err) {
-          addLog('카메라 모션 로드 실패');
-          document.getElementById('cam-btn').style.display = 'none';
-          cameraAnimation = null;
-        });
-      }
-
-      // 카메라 ON/OFF 토글
-      document.getElementById('cam-btn').addEventListener('click', function() {
-        if (!cameraAnimation) return;
-        cameraEnabled = !cameraEnabled;
-        if (cameraEnabled) {
-          savedCameraPos = camera.position.clone();
-          savedCameraTarget = controls.target.clone();
-          helper.add(camera, { animation: cameraAnimation });
-          controls.enabled = false;
-          this.textContent = 'CAM OFF';
-          this.style.background = '#EF4444';
-          addLog('카메라 모션 ON');
-        } else {
-          try { helper.remove(camera); } catch(e) {}
-          camera.position.copy(savedCameraPos);
-          camera.rotation.set(0, 0, 0);
-          camera.up.set(0, 1, 0);
-          controls.target.copy(savedCameraTarget);
-          controls.enabled = true;
-          controls.update();
-          this.textContent = 'CAM ON';
-          this.style.background = '#F59E0B';
-          addLog('카메라 모션 OFF');
-        }
-      });
-
-      // 곡 로드 함수
-      function loadSong(vmdUrl, mp3Url, camUrl, coverUrl) {
-        if (!currentModel) { addLog('❌ 먼저 모델을 로드하세요', 'red'); return; }
-        isPlaying = false;
-        var audioEl = document.getElementById('bgm-audio');
-        audioEl.pause();
-        audioEl.currentTime = 0;
-
-        // 기존 애니메이션 제거
-        if (helper.meshes && helper.meshes.length > 0) {
-          try { helper.remove(currentModel); } catch(e) {}
-        }
-        mixer = null;
-        helper = new THREE.MMDAnimationHelper();
-
-        addLog('VMD 로딩...');
-        mmdLoader.loadAnimation(vmdUrl, currentModel, function(animation) {
-          addLog('VMD 파싱 완료, 모션 적용중...');
-          var helperDone = false;
-          setTimeout(function() {
-            if (!helperDone) {
-              addLog('helper 타임아웃, FK로 폴백');
-              mixer = new THREE.AnimationMixer(currentModel);
-              mixer.clipAction(animation).play();
-            }
-          }, 8000);
-          try {
-            helper.add(currentModel, { animation: animation, physics: true });
-            helperDone = true;
-            addLog('✅ 모션 적용 완료 (IK+물리)', 'lime');
-          } catch(e) {
-            helperDone = true;
-            addLog('helper 실패: ' + e.message + ', FK 시도');
-            try {
-              mixer = new THREE.AnimationMixer(currentModel);
-              var action = mixer.clipAction(animation);
-              action.setLoop(THREE.LoopOnce);
-              action.clampWhenFinished = true;
-              action.play();
-              addLog('✅ 모션 적용 (FK)', 'lime');
-            } catch(e2) {
-              addLog('❌ FK도 실패: ' + e2.message, 'red');
-            }
-          }
-          audioEl.src = mp3Url;
-          addLog('✅ 음악 로드 완료', 'lime');
-
-          // 카메라 리셋 및 로드
-          cameraEnabled = false;
-          try { helper.remove(camera); } catch(e) {}
-          controls.enabled = true;
-          loadCamera(camUrl || null);
-          setCoverImage(coverUrl || null);
-        }, function(p) {
-          if (p.total > 0) addLog('VMD: ' + Math.round(p.loaded / p.total * 100) + '%');
-        }, function(err) {
-          addLog('❌ VMD 실패: ' + (err.message || err), 'red');
-        });
-      }
-
-      // 로드 버튼 — 모델+곡 전체 새로 로드
-      var currentPmxPath = null;
-
-      // 모델만 로드
-      document.getElementById('model-load-btn').addEventListener('click', function() {
-        var modelKey = document.getElementById('model-select').value;
-        var versionKey = document.getElementById('version-select').value;
-        var model = modelDB[modelKey];
-        if (!model || !versionKey || !model.versions[versionKey]) { addLog('❌ 캐릭터와 버전을 선택하세요', 'red'); return; }
-        var pmxPath = model.versions[versionKey].pmx;
-        currentPmxPath = pmxPath;
-        addLog('모델 로드: ' + model.name + ' (' + model.versions[versionKey].name + ')');
-        loadModel(pmxPath);
-      });
-
-      // 곡 로드 버튼
-      document.getElementById('load-btn').addEventListener('click', function() {
-        var artist = document.getElementById('artist-select').value;
-        var songKey = document.getElementById('song-select').value;
-        if (!artist || !songKey) { addLog('❌ 가수와 곡을 선택하세요', 'red'); return; }
-        if (!currentModel) { addLog('❌ 먼저 모델을 로드하세요', 'red'); return; }
-        var song = songDB[artist].songs[songKey];
-        addLog('곡 로드: ' + songDB[artist].name + ' - ' + song.name);
-        loadSong(song.vmd, song.mp3, song.cam, song.cover);
-      });
-
-      // 기본 모델만 로드 (T포즈 대기)
-      loadModel(pmxUrl);
-
-      // PMX 파일 업로드 — parser로 직접 파싱
-      document.getElementById('pmx-input').addEventListener('change', function(e) {
-        var file = e.target.files[0];
-        if (!file) return;
-        addLog('PMX 로딩: ' + file.name);
-
-        if (currentModel) {
-          scene.remove(currentModel);
-          currentModel = null;
-          mixer = null;
-          helper = new THREE.MMDAnimationHelper();
-        }
-
-        var reader = new FileReader();
-        reader.onload = function(ev) {
-          try {
-            var data = ev.target.result;
-            var parser = new MMDParser.Parser();
-            var pmx = parser.parsePmx(data, true);
-            addLog('파싱 완료: 정점 ' + pmx.metadata.vertexCount + ', 면 ' + pmx.metadata.faceCount);
-
-            // 직접 지오메트리 생성
-            var geo = new THREE.BufferGeometry();
-            var positions = [];
-            var normals = [];
-            var uvs = [];
-            var indices = [];
-
-            for (var i = 0; i < pmx.vertices.length; i++) {
-              var v = pmx.vertices[i];
-              positions.push(v.position[0], v.position[1], v.position[2]);
-              normals.push(v.normal[0], v.normal[1], v.normal[2]);
-              uvs.push(v.uv[0], v.uv[1]);
-            }
-
-            for (var i = 0; i < pmx.faces.length; i++) {
-              var face = pmx.faces[i];
-              indices.push(face.indices[0], face.indices[1], face.indices[2]);
-            }
-
-            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-            geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-
-            var indexArray = new Uint32Array(indices);
-            geo.setIndex(new THREE.BufferAttribute(indexArray, 1));
-
-            var materials = [];
-            var offset = 0;
-            for (var i = 0; i < pmx.materials.length; i++) {
-              var m = pmx.materials[i];
-              var d = m.diffuse || [0.8, 0.8, 0.8, 1.0];
-              var mat = new THREE.MeshPhongMaterial({
-                color: new THREE.Color(d[0], d[1], d[2]),
-                opacity: d[3],
-                transparent: d[3] < 1.0,
-                side: THREE.DoubleSide,
-                shininess: 20
-              });
-              materials.push(mat);
-              geo.addGroup(offset, m.faceCount * 3, i);
-              offset += m.faceCount * 3;
-            }
-
-            geo.computeBoundingSphere();
-            var mesh = new THREE.Mesh(geo, materials);
-            currentModel = mesh;
-            scene.add(mesh);
-
-            var box = new THREE.Box3().setFromObject(mesh);
-            var center = box.getCenter(new THREE.Vector3());
-            var size = box.getSize(new THREE.Vector3());
-            controls.target.copy(center);
-            camera.position.set(center.x, center.y, center.z + size.y * 2.5);
-            controls.update();
-
-            addLog('✅ PMX 모델 로드 완료 (' + pmx.materials.length + ' 머티리얼)', 'lime');
-          } catch(err) {
-            addLog('❌ PMX 파싱 실패: ' + (err.message || err), 'red');
-          }
-        };
-        reader.readAsArrayBuffer(file);
-      });
-
-      // VMD 모션 업로드
-      document.getElementById('vmd-input').addEventListener('change', function(e) {
-        var file = e.target.files[0];
-        if (!file) return;
-        if (!currentModel) {
-          addLog('❌ 먼저 모델을 로드하세요', 'red');
-          return;
-        }
-        addLog('VMD 로딩: ' + file.name);
-
-        var reader = new FileReader();
-        reader.onload = function(ev) {
-          var blob = new Blob([ev.target.result]);
-          var url = URL.createObjectURL(blob);
-
-          mmdLoader.loadAnimation(url, currentModel, function(animation) {
-            helper.remove(currentModel);
-            helper.add(currentModel, { animation: animation });
-            addLog('✅ VMD 모션 적용 완료: ' + file.name, 'lime');
-            URL.revokeObjectURL(url);
-          }, function(p) {
-            if (p.total > 0) addLog('로딩: ' + Math.round(p.loaded / p.total * 100) + '%');
-          }, function(err) {
-            addLog('❌ VMD 로드 실패: ' + (err.message || err), 'red');
-          });
-        };
-        reader.readAsArrayBuffer(file);
-      });
-
-      // GLB 파일 업로드
-      document.getElementById('glb-input').addEventListener('change', function(e) {
-        var file = e.target.files[0];
-        if (!file) return;
-        addLog('GLB 로딩: ' + file.name);
-
-        if (currentModel) {
-          scene.remove(currentModel);
-          currentModel = null;
-          mixer = null;
-        }
-
-        var reader = new FileReader();
-        reader.onload = function(ev) {
-          var blob = new Blob([ev.target.result]);
-          var url = URL.createObjectURL(blob);
-
-          gltfLoader.load(url, function(gltf) {
-            currentModel = gltf.scene;
-            scene.add(currentModel);
-            if (gltf.animations.length > 0) {
-              mixer = new THREE.AnimationMixer(currentModel);
-              mixer.clipAction(gltf.animations[0]).play();
-              addLog('✅ GLB 로드 완료 (애니메이션 ' + gltf.animations.length + '개)', 'lime');
-            } else {
-              addLog('✅ GLB 로드 완료', 'lime');
-            }
-
-            var box = new THREE.Box3().setFromObject(currentModel);
-            var center = box.getCenter(new THREE.Vector3());
-            var size = box.getSize(new THREE.Vector3());
-            controls.target.copy(center);
-            camera.position.set(center.x, center.y + size.y * 0.3, size.y * 2.5);
-
-            URL.revokeObjectURL(url);
-          }, null, function(err) {
-            addLog('❌ GLB 로드 실패: ' + (err.message || err), 'red');
-          });
-        };
-        reader.readAsArrayBuffer(file);
-      });
-
-      // WAV 음악 업로드
-      document.getElementById('wav-input').addEventListener('change', function(e) {
-        var file = e.target.files[0];
-        if (!file) return;
-        var audioEl = document.getElementById('bgm-audio');
-        var url = URL.createObjectURL(file);
-        audioEl.src = url;
-        addLog('✅ 음악 로드: ' + file.name, 'lime');
-      });
-
-      // 음악 끝나면 모션도 정지
-      document.getElementById('bgm-audio').addEventListener('ended', function() {
-        isPlaying = false;
-        this.currentTime = 0;
-        addLog('■ 재생 완료');
-      });
-
-      // 재생 — 모션 + 음악 동시 시작
-      document.getElementById('play-btn').addEventListener('click', function() {
-        var audioEl = document.getElementById('bgm-audio');
-        isPlaying = true;
-        clock.getDelta(); // 델타 리셋
-        if (audioEl.src) {
-          audioEl.play();
-        }
-        addLog('▶ 재생 시작 (모션+음악 동기화)');
-      });
-
-      // 정지 — 모션 + 음악 동시 정지
-      document.getElementById('stop-btn').addEventListener('click', function() {
-        var audioEl = document.getElementById('bgm-audio');
-        isPlaying = false;
-        audioEl.pause();
-        audioEl.currentTime = 0;
-        addLog('■ 정지');
-      });
-
-      window.addEventListener('resize', function() {
-        var w = container.clientWidth;
-        var h = container.clientHeight;
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
-      });
-
-    } catch(e) {
-      addLog('❌ 씬 초기화 실패: ' + e.message, 'red');
-    }
-  }
-})();
-`,
-        }}
-      />
+        className="bg-black rounded-xl p-3 text-xs font-mono max-h-40 overflow-y-auto"
+        style={{ color: "#aaa" }}
+      >
+        {log.map((l, i) => (
+          <div key={i} className={l.startsWith("❌") ? "text-red-500" : l.startsWith("✅") ? "text-green-500" : "text-gray-400"}>
+            {l}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
