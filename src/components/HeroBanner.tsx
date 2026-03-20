@@ -16,6 +16,10 @@ const pageMetaMap: Record<string, PageMeta> = {
     title: "Projects",
     subtitle: "새로운 아이디어를 찾고 연구하는 공간",
   },
+  "/stage1": {
+    title: "Stage1",
+    subtitle: "Web MMD 뷰어 & 댄스 스테이지",
+  },
 };
 
 const projectMetaMap: Record<string, PageMeta> = {
@@ -24,15 +28,10 @@ const projectMetaMap: Record<string, PageMeta> = {
     title: "Lab0",
     subtitle: "개인 연구 포털 구축",
   },
-  reel1: {
-    banner: "/banners/A0001.webp",
-    title: "Reel1",
-    subtitle: "영화/드라마 개인 아카이브",
-  },
   stage1: {
     title: "Stage1",
     subtitle: "Web MMD 뷰어 & 댄스 스테이지",
-    link: "http://localhost:3001",
+    link: "/stage1",
   },
 };
 

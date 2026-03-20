@@ -1,6 +1,6 @@
 ---
 title: Stage1
-id: A0002
+id: A0001
 status: in-progress
 tags: [Three.js, MMD, WebGL, 음악]
 createdAt: 2026-03-20
