@@ -33,6 +33,14 @@ const projectMetaMap: Record<string, PageMeta> = {
     subtitle: "Web MMD 뷰어 & 댄스 스테이지",
     link: "/stage1",
   },
+  idol2: {
+    title: "Idol2",
+    subtitle: "MMD 모션 에디터",
+  },
+  forge3: {
+    title: "Forge3",
+    subtitle: "PMX 에디터",
+  },
 };
 
 function getPageMeta(pathname: string): PageMeta {
