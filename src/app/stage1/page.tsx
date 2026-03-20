@@ -31,7 +31,7 @@ export default function MMDPage() {
           ■ 정지
         </button>
       </div>
-      <audio id="bgm-audio" src="/mmd/audio.mp3" style={{ display: "none" }} />
+      <audio id="bgm-audio" src="/mmd/songs/00.sample-shake_it/emon-shake_it.mp3" style={{ display: "none" }} />
       <div style={{ fontSize: "12px", color: "#6B7280" }}>
         터치 드래그: 회전 | 핀치: 줌 | 두 손가락 드래그: 이동
       </div>
@@ -213,8 +213,8 @@ export default function MMDPage() {
 
       var gltfLoader = new THREE.GLTFLoader();
       var mmdLoader = new THREE.MMDLoader(mmdManager);
-      var pmxUrl = '/mmd/lovelive20141216/lovelive2/Kousaka_Honoka.pmx';
-      var vmdUrl = '/mmd/dance.vmd';
+      var pmxUrl = '/mmd/models/lovelive20141216/lovelive2/Kousaka_Honoka.pmx';
+      var vmdUrl = '/mmd/songs/00.sample-shake_it/emon-shake_it.vmd';
 
       // MMDLoader로 모델만 먼저 로드 (텍스처 포함)
       addLog('PMX 로딩 (MMDLoader)...');
