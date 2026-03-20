@@ -202,7 +202,7 @@ export default function MMDPage() {
       // 바닥
       var floor = new THREE.Mesh(
         new THREE.PlaneGeometry(60, 60),
-        new THREE.MeshStandardMaterial({ color: 0x2a2a4e, roughness: 0.8 })
+        new THREE.MeshStandardMaterial({ color: 0x2a2a4e, roughness: 0.8, transparent: true, opacity: 0.3 })
       );
       floor.rotation.x = -Math.PI / 2;
       floor.receiveShadow = true;
