@@ -44,20 +44,16 @@ export default function MMDPage() {
         <button id="stop-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#EF4444", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer" }}>
           ■ 정지
         </button>
+        <button id="cam-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#666", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer", display: "none" }}>
+          CAM OFF
+        </button>
       </div>
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginTop: "4px" }}>
-        <label style={{ fontSize: "11px", padding: "4px 10px", background: "#2a2a4e", color: "#aaa", borderRadius: "6px", cursor: "pointer" }}>
-          PMX <input id="pmx-input" type="file" accept=".pmx,.pmd" style={{ display: "none" }} />
-        </label>
-        <label style={{ fontSize: "11px", padding: "4px 10px", background: "#2a2a4e", color: "#aaa", borderRadius: "6px", cursor: "pointer" }}>
-          VMD <input id="vmd-input" type="file" accept=".vmd" style={{ display: "none" }} />
-        </label>
-        <label style={{ fontSize: "11px", padding: "4px 10px", background: "#2a2a4e", color: "#aaa", borderRadius: "6px", cursor: "pointer" }}>
-          GLB <input id="glb-input" type="file" accept=".glb,.gltf" style={{ display: "none" }} />
-        </label>
-        <label style={{ fontSize: "11px", padding: "4px 10px", background: "#2a2a4e", color: "#aaa", borderRadius: "6px", cursor: "pointer" }}>
-          음악 <input id="wav-input" type="file" accept=".wav,.mp3,.ogg" style={{ display: "none" }} />
-        </label>
+      {/* 수동 업로드 버튼 — 비활성화 */}
+      <div style={{ display: "none" }}>
+        <input id="pmx-input" type="file" accept=".pmx,.pmd" />
+        <input id="vmd-input" type="file" accept=".vmd" />
+        <input id="glb-input" type="file" accept=".glb,.gltf" />
+        <input id="wav-input" type="file" accept=".wav,.mp3,.ogg" />
       </div>
       <audio id="bgm-audio" style={{ display: "none" }} />
       <div style={{ fontSize: "12px", color: "#6B7280" }}>
@@ -91,13 +87,13 @@ export default function MMDPage() {
     emon: {
       name: 'emon',
       songs: {
-        shake_it: { name: 'Shake It', vmd: '/mmd/songs/emon/shake_it/emon-shake_it.vmd', mp3: '/mmd/songs/emon/shake_it/emon-shake_it.mp3' }
+        shake_it: { name: 'Shake It', vmd: '/mmd/songs/emon/shake_it/emon-shake_it.vmd', mp3: '/mmd/songs/emon/shake_it/emon-shake_it.mp3', cam: null, cover: null }
       }
     },
     aespa: {
       name: 'aespa',
       songs: {
-        black_mamba: { name: 'Black Mamba', vmd: '/mmd/songs/aespa/black_mamba/aespa-black_mamba.vmd', mp3: '/mmd/songs/aespa/black_mamba/aespa-black_mamba.mp3' }
+        black_mamba: { name: 'Black Mamba', vmd: '/mmd/songs/aespa/black_mamba/aespa-black_mamba.vmd', mp3: '/mmd/songs/aespa/black_mamba/aespa-black_mamba.mp3', cam: '/mmd/songs/aespa/black_mamba/aespa-black_mamba-cam.vmd', cover: '/mmd/songs/aespa/black_mamba/aespa-black_mamba-cover.jpg' }
       }
     }
   };
@@ -220,6 +216,29 @@ export default function MMDPage() {
       backWall.position.set(0, 20, -30);
       scene.add(backWall);
 
+      // 뒷벽 앨범 커버
+      var coverPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(15, 15),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
+      );
+      coverPlane.position.set(0, 20, -29.9);
+      scene.add(coverPlane);
+
+      function setCoverImage(coverUrl) {
+        if (!coverUrl) {
+          coverPlane.material.opacity = 0;
+          coverPlane.material.needsUpdate = true;
+          return;
+        }
+        var texLoader = new THREE.TextureLoader();
+        texLoader.load(coverUrl, function(tex) {
+          tex.encoding = THREE.sRGBEncoding;
+          coverPlane.material.map = tex;
+          coverPlane.material.opacity = 0.8;
+          coverPlane.material.needsUpdate = true;
+        });
+      }
+
       // 좌벽
       var leftWall = new THREE.Mesh(
         new THREE.PlaneGeometry(60, 40),
@@ -319,8 +338,60 @@ export default function MMDPage() {
         if (model) loadModel(model.pmx);
       });
 
+      var cameraAnimation = null;
+      var cameraEnabled = false;
+      var savedCameraPos = null;
+      var savedCameraTarget = null;
+
+      // 카메라 모션 로드
+      function loadCamera(camUrl) {
+        if (!camUrl) {
+          document.getElementById('cam-btn').style.display = 'none';
+          cameraAnimation = null;
+          return;
+        }
+        addLog('카메라 모션 로딩...');
+        mmdLoader.loadAnimation(camUrl, camera, function(animation) {
+          cameraAnimation = animation;
+          document.getElementById('cam-btn').style.display = '';
+          document.getElementById('cam-btn').textContent = 'CAM ON';
+          document.getElementById('cam-btn').style.background = '#F59E0B';
+          addLog('✅ 카메라 모션 로드 완료', 'lime');
+        }, null, function(err) {
+          addLog('카메라 모션 로드 실패');
+          document.getElementById('cam-btn').style.display = 'none';
+          cameraAnimation = null;
+        });
+      }
+
+      // 카메라 ON/OFF 토글
+      document.getElementById('cam-btn').addEventListener('click', function() {
+        if (!cameraAnimation) return;
+        cameraEnabled = !cameraEnabled;
+        if (cameraEnabled) {
+          savedCameraPos = camera.position.clone();
+          savedCameraTarget = controls.target.clone();
+          helper.add(camera, { animation: cameraAnimation });
+          controls.enabled = false;
+          this.textContent = 'CAM OFF';
+          this.style.background = '#EF4444';
+          addLog('카메라 모션 ON');
+        } else {
+          try { helper.remove(camera); } catch(e) {}
+          camera.position.copy(savedCameraPos);
+          camera.rotation.set(0, 0, 0);
+          camera.up.set(0, 1, 0);
+          controls.target.copy(savedCameraTarget);
+          controls.enabled = true;
+          controls.update();
+          this.textContent = 'CAM ON';
+          this.style.background = '#F59E0B';
+          addLog('카메라 모션 OFF');
+        }
+      });
+
       // 곡 로드 함수
-      function loadSong(vmdUrl, mp3Url) {
+      function loadSong(vmdUrl, mp3Url, camUrl, coverUrl) {
         if (!currentModel) { addLog('❌ 먼저 모델을 로드하세요', 'red'); return; }
         isPlaying = false;
         var audioEl = document.getElementById('bgm-audio');
@@ -357,6 +428,13 @@ export default function MMDPage() {
           }
           audioEl.src = mp3Url;
           addLog('✅ 음악 로드 완료', 'lime');
+
+          // 카메라 리셋 및 로드
+          cameraEnabled = false;
+          try { helper.remove(camera); } catch(e) {}
+          controls.enabled = true;
+          loadCamera(camUrl || null);
+          setCoverImage(coverUrl || null);
         }, function(p) {
           if (p.total > 0) addLog('VMD: ' + Math.round(p.loaded / p.total * 100) + '%');
         }, function(err) {
@@ -375,14 +453,12 @@ export default function MMDPage() {
         if (!model) { addLog('❌ 모델을 선택하세요', 'red'); return; }
         addLog('로드: ' + songDB[artist].name + ' - ' + song.name);
         loadModel(model.pmx, function() {
-          loadSong(song.vmd, song.mp3);
+          loadSong(song.vmd, song.mp3, song.cam, song.cover);
         });
       });
 
-      // 기본 모델 + 기본 곡 로드
-      loadModel(pmxUrl, function(mesh) {
-        loadSong(currentVmdUrl, currentMp3Url);
-      });
+      // 기본 모델만 로드 (T포즈 대기)
+      loadModel(pmxUrl);
 
       // PMX 파일 업로드 — parser로 직접 파싱
       document.getElementById('pmx-input').addEventListener('change', function(e) {
@@ -547,6 +623,13 @@ export default function MMDPage() {
         var url = URL.createObjectURL(file);
         audioEl.src = url;
         addLog('✅ 음악 로드: ' + file.name, 'lime');
+      });
+
+      // 음악 끝나면 모션도 정지
+      document.getElementById('bgm-audio').addEventListener('ended', function() {
+        isPlaying = false;
+        this.currentTime = 0;
+        addLog('■ 재생 완료');
       });
 
       // 재생 — 모션 + 음악 동시 시작
