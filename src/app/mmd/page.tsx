@@ -31,7 +31,7 @@ export default function MMDPage() {
           ■ 정지
         </button>
       </div>
-      <audio id="bgm-audio" style={{ display: "none" }} />
+      <audio id="bgm-audio" src="/mmd/audio.mp3" style={{ display: "none" }} />
       <div style={{ fontSize: "12px", color: "#6B7280" }}>
         터치 드래그: 회전 | 핀치: 줌 | 두 손가락 드래그: 이동
       </div>
@@ -55,7 +55,7 @@ export default function MMDPage() {
   addLog('초기화 시작...');
 
   var scripts = [
-    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/ammo.wasm.js',
+    'https://cdn.jsdelivr.net/npm/ammo.js@0.0.10/ammo.js',
     'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js',
     'https://cdn.jsdelivr.net/npm/mmd-parser/build/mmdparser.min.js',
     'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
@@ -63,6 +63,7 @@ export default function MMDPage() {
     'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/TGALoader.js',
     'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/MMDLoader.js',
     'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/CCDIKSolver.js',
+    'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/MMDPhysics.js',
     'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/animation/MMDAnimationHelper.js',
     'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/effects/OutlineEffect.js'
   ];
@@ -71,6 +72,15 @@ export default function MMDPage() {
   function loadNext() {
     if (loaded >= scripts.length) {
       addLog('모든 모듈 로드 완료');
+      if (typeof Ammo === 'function') {
+        addLog('Ammo 초기화중...');
+        Ammo().then(function(AmmoLib) {
+          window.Ammo = AmmoLib;
+          addLog('Ammo 초기화 완료');
+          startScene();
+        });
+        return;
+      }
       startScene();
       return;
     }
@@ -124,16 +134,44 @@ export default function MMDPage() {
       backLight.position.set(-2, 2, -3);
       scene.add(backLight);
 
+      // 바닥
       var floor = new THREE.Mesh(
-        new THREE.CircleGeometry(2, 64),
-        new THREE.MeshStandardMaterial({ color: 0x2a2a4e })
+        new THREE.PlaneGeometry(60, 60),
+        new THREE.MeshStandardMaterial({ color: 0x2a2a4e, roughness: 0.8 })
       );
       floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
       scene.add(floor);
 
-      var grid = new THREE.GridHelper(4, 20, 0x444488, 0x333366);
-      grid.position.y = 0.001;
+      var grid = new THREE.GridHelper(60, 30, 0x444488, 0x333366);
+      grid.position.y = 0.01;
       scene.add(grid);
+
+      // 뒷벽
+      var backWall = new THREE.Mesh(
+        new THREE.PlaneGeometry(60, 40),
+        new THREE.MeshStandardMaterial({ color: 0x222244, roughness: 0.9, transparent: true, opacity: 0.3 })
+      );
+      backWall.position.set(0, 20, -30);
+      scene.add(backWall);
+
+      // 좌벽
+      var leftWall = new THREE.Mesh(
+        new THREE.PlaneGeometry(60, 40),
+        new THREE.MeshStandardMaterial({ color: 0x1e1e3e, roughness: 0.9, transparent: true, opacity: 0.3 })
+      );
+      leftWall.rotation.y = Math.PI / 2;
+      leftWall.position.set(-30, 20, 0);
+      scene.add(leftWall);
+
+      // 우벽
+      var rightWall = new THREE.Mesh(
+        new THREE.PlaneGeometry(60, 40),
+        new THREE.MeshStandardMaterial({ color: 0x1e1e3e, roughness: 0.9, transparent: true, opacity: 0.3 })
+      );
+      rightWall.rotation.y = -Math.PI / 2;
+      rightWall.position.set(30, 20, 0);
+      scene.add(rightWall);
 
       // 텍스처 로드 실패를 무시하는 LoadingManager
       var mmdManager = new THREE.LoadingManager();
@@ -172,7 +210,7 @@ export default function MMDPage() {
       var gltfLoader = new THREE.GLTFLoader();
       var mmdLoader = new THREE.MMDLoader(mmdManager);
       var pmxUrl = '/mmd/lovelive20141216/lovelive2/Kousaka_Honoka.pmx';
-      var vmdUrl = '/mmd/elect.vmd';
+      var vmdUrl = '/mmd/dance.vmd';
 
       // MMDLoader로 모델만 먼저 로드 (텍스처 포함)
       addLog('PMX 로딩 (MMDLoader)...');
@@ -211,7 +249,7 @@ export default function MMDPage() {
           }, 8000);
 
           try {
-            helper.add(mesh, { animation: animation, physics: false });
+            helper.add(mesh, { animation: animation, physics: true });
             helperDone = true;
             addLog('✅ 모션 적용 완료 (IK 포함)', 'lime');
           } catch(helperErr) {
