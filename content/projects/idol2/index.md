@@ -1,7 +1,7 @@
 ---
 title: Idol2
 id: A0002
-status: planned
+status: paused
 tags: [Three.js, MMD, VMD, 모션에디터]
 createdAt: 2026-03-20
 version: 0.0.0

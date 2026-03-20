@@ -70,7 +70,8 @@ export function getProjects(): ProjectMeta[] {
         version: meta.version || "",
       };
     })
-    .filter(Boolean) as ProjectMeta[];
+    .filter(Boolean)
+    .sort((a, b) => (a as ProjectMeta).id.localeCompare((b as ProjectMeta).id)) as ProjectMeta[];
 }
 
 export function getProject(slug: string): Project | null {

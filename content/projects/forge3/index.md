@@ -1,7 +1,7 @@
 ---
 title: Forge3
 id: A0003
-status: planned
+status: paused
 tags: [Three.js, MMD, PMX, 3D에디터]
 createdAt: 2026-03-20
 version: 0.0.0
