@@ -30,6 +30,7 @@ const menuItems: MenuItem[] = [
     label: "도구",
     children: [
       { label: "글꼴 비교", href: "/fonts" },
+      { label: "3D 뷰어", href: "/mmd" },
     ],
   },
   { label: "설정", href: "/settings" },
