@@ -25,18 +25,32 @@ export default function MMDPage() {
       />
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
         <select id="model-select" style={{ fontSize: "12px", padding: "4px 8px", borderRadius: "8px", background: "#2a2a4e", color: "#fff", border: "1px solid #444" }}>
-          <option value="lovelive_honoka">호노카 (러브라이브)</option>
+          <option value="">-- 캐릭터 --</option>
+          <option value="honoka">호노카 (러브라이브)</option>
+          <option value="yor">요르 (스파이패밀리)</option>
+          <option value="nezuko">네즈코 (귀멸의 칼날)</option>
+          <option value="anya">아냐 (스파이패밀리)</option>
+          <option value="zoey">Zoey (HUNTRIX)</option>
+          <option value="rumi">Rumi (HUNTRIX)</option>
+          <option value="mira">Mira (HUNTRIX)</option>
+          <option value="tda_cn">TDA (CN)</option>
+          <option value="ming">Ming (카라피큐)</option>
+          <option value="kizuna">키즈나아이</option>
         </select>
+        <select id="version-select" style={{ fontSize: "12px", padding: "4px 8px", borderRadius: "8px", background: "#2a2a4e", color: "#fff", border: "1px solid #444" }}>
+          <option value="">-- 버전 --</option>
+        </select>
+        <button id="model-load-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#6B7280", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer" }}>
+          모델
+        </button>
         <select id="artist-select" style={{ fontSize: "12px", padding: "4px 8px", borderRadius: "8px", background: "#1A1A2E", color: "#fff", border: "1px solid #444" }}>
           <option value="">-- 가수 --</option>
-          <option value="emon">emon</option>
-          <option value="aespa">aespa</option>
         </select>
         <select id="song-select" style={{ fontSize: "12px", padding: "4px 8px", borderRadius: "8px", background: "#1A1A2E", color: "#fff", border: "1px solid #444" }}>
           <option value="">-- 곡 --</option>
         </select>
         <button id="load-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#4A90C4", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer" }}>
-          로드
+          곡 로드
         </button>
         <button id="play-btn" style={{ fontSize: "12px", padding: "6px 12px", background: "#22C55E", color: "#fff", borderRadius: "8px", border: "none", cursor: "pointer" }}>
           ▶ 재생
@@ -79,24 +93,88 @@ export default function MMDPage() {
 
   // 모델 데이터베이스
   var modelDB = {
-    lovelive_honoka: { name: '호노카 (러브라이브)', pmx: '/mmd/models/lovelive20141216/lovelive2/Kousaka_Honoka.pmx' }
-  };
-
-  // 곡 데이터베이스
-  var songDB = {
-    emon: {
-      name: 'emon',
-      songs: {
-        shake_it: { name: 'Shake It', vmd: '/mmd/songs/emon/shake_it/emon-shake_it.vmd', mp3: '/mmd/songs/emon/shake_it/emon-shake_it.mp3', cam: null, cover: null }
+    honoka: {
+      name: '호노카 (러브라이브)',
+      versions: {
+        default: { name: 'Default', pmx: '/mmd/models/lovelive20141216/lovelive2/Kousaka_Honoka.pmx' }
       }
     },
-    aespa: {
-      name: 'aespa',
-      songs: {
-        black_mamba: { name: 'Black Mamba', vmd: '/mmd/songs/aespa/black_mamba/aespa-black_mamba.vmd', mp3: '/mmd/songs/aespa/black_mamba/aespa-black_mamba.mp3', cam: '/mmd/songs/aespa/black_mamba/aespa-black_mamba-cam.vmd', cover: '/mmd/songs/aespa/black_mamba/aespa-black_mamba-cover.jpg' }
+    yor: {
+      name: '요르 (스파이패밀리)',
+      versions: {
+        dress: { name: 'Dress', pmx: '/mmd/models/yor_forger/yor_dress.pmx' },
+        base: { name: 'Base', pmx: '/mmd/models/yor_forger/yor_base.pmx' }
+      }
+    },
+    nezuko: {
+      name: '네즈코 (귀멸의 칼날)',
+      versions: {
+        default: { name: 'Default', pmx: '/mmd/models/nezuko/nezuko.pmx' },
+        base: { name: 'Base', pmx: '/mmd/models/nezuko/nezuko_base.pmx' },
+        child: { name: 'Child', pmx: '/mmd/models/nezuko/nezuko_child.pmx' }
+      }
+    },
+    anya: {
+      name: '아냐 (스파이패밀리)',
+      versions: {
+        default: { name: 'Default', pmx: '/mmd/models/anya_forger/anya.pmx' }
+      }
+    },
+    zoey: {
+      name: 'Zoey (HUNTRIX)',
+      versions: {
+        default: { name: 'Default', pmx: '/mmd/models/zoey/Zoey.pmx' }
+      }
+    },
+    rumi: {
+      name: 'Rumi (HUNTRIX)',
+      versions: {
+        default: { name: 'Default', pmx: '/mmd/models/rumi/Rumi.pmx' }
+      }
+    },
+    mira: {
+      name: 'Mira (HUNTRIX)',
+      versions: {
+        default: { name: 'Default', pmx: '/mmd/models/mira/Mira.pmx' }
+      }
+    },
+    tda_cn: {
+      name: 'TDA (CN)',
+      versions: {
+        default: { name: 'Default', pmx: '/mmd/models/tda_cn/tda.pmx' }
+      }
+    },
+    ming: {
+      name: 'Ming (카라피큐)',
+      versions: {
+        default: { name: 'Default', pmx: '/mmd/models/ming/ming.pmx' }
+      }
+    },
+    kizuna: {
+      name: '키즈나아이',
+      versions: {
+        normal: { name: 'Normal', pmx: '/mmd/models/kizuna_normal/kizuna_normal.pmx' },
+        anime: { name: 'Anime', pmx: '/mmd/models/kizuna_anime/kizuna_anime.pmx' },
+        live: { name: 'Live', pmx: '/mmd/models/kizuna_live/kizuna_live.pmx' }
       }
     }
   };
+
+  // 곡 데이터베이스 (외부 JSON에서 로드)
+  var songDB = {};
+  fetch('/mmd/songdb.json').then(function(r) { return r.json(); }).then(function(data) {
+    songDB = data;
+    // 아티스트 드롭박스 채우기
+    var artistSelect = document.getElementById('artist-select');
+    artistSelect.innerHTML = '<option value="">-- 가수 --</option>';
+    Object.keys(songDB).sort().forEach(function(key) {
+      var opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = songDB[key].name;
+      artistSelect.appendChild(opt);
+    });
+    addLog('songDB 로드: ' + Object.keys(songDB).length + '개 아티스트');
+  });
 
   // 가수 선택 → 곡 목록 갱신
   document.getElementById('artist-select').addEventListener('change', function(e) {
@@ -181,18 +259,21 @@ export default function MMDPage() {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       container.appendChild(renderer.domElement);
 
-      var effect = new THREE.OutlineEffect(renderer);
+      var effect = renderer;
 
       controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.target.set(0, 1, 0);
       controls.enableDamping = true;
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-      var dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-      dirLight.position.set(3, 5, 3);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+      var dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+      dirLight.position.set(0, 10, 10);
       scene.add(dirLight);
-      var backLight = new THREE.DirectionalLight(0x6cb4ee, 0.3);
-      backLight.position.set(-2, 2, -3);
+      var fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+      fillLight.position.set(-5, 5, 5);
+      scene.add(fillLight);
+      var backLight = new THREE.DirectionalLight(0x6cb4ee, 0.15);
+      backLight.position.set(0, 5, -5);
       scene.add(backLight);
 
       // 바닥
@@ -268,6 +349,11 @@ export default function MMDPage() {
         if (fixed.indexOf('blob:') === 0 && fixed.indexOf('.pmx') === -1 && fixed.indexOf('.pmd') === -1 && fixed.indexOf('.vmd') === -1) {
           return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==';
         }
+        // 기본 toon 텍스처를 공통 경로에서 로드
+        var toonMatch = fixed.match(/toon0[0-9]\.bmp$|toon10\.bmp$/);
+        if (toonMatch && fixed.indexOf('/mmd/toon/') === -1) {
+          return '/mmd/toon/' + toonMatch[0];
+        }
         return fixed;
       });
       // 5초 타임아웃으로 로드 실패 방지
@@ -297,7 +383,7 @@ export default function MMDPage() {
 
       var gltfLoader = new THREE.GLTFLoader();
       var mmdLoader = new THREE.MMDLoader(mmdManager);
-      var pmxUrl = '/mmd/models/lovelive20141216/lovelive2/Kousaka_Honoka.pmx';
+      var pmxUrl = modelDB.honoka.versions.default.pmx;
       var currentVmdUrl = '/mmd/songs/emon/shake_it/emon-shake_it.vmd';
       var currentMp3Url = '/mmd/songs/emon/shake_it/emon-shake_it.mp3';
 
@@ -323,6 +409,32 @@ export default function MMDPage() {
           controls.target.copy(center);
           camera.position.set(center.x, center.y, center.z + size.y * 2.5);
           controls.update();
+          var box = new THREE.Box3().setFromObject(mesh);
+          var center = box.getCenter(new THREE.Vector3());
+          var size = box.getSize(new THREE.Vector3());
+          addLog('크기: ' + size.x.toFixed(1) + 'x' + size.y.toFixed(1) + 'x' + size.z.toFixed(1));
+
+          // 비정상적으로 큰 모델은 상단부만 보이게
+          if (size.y > 100) {
+            controls.target.set(0, 10, 0);
+            camera.position.set(0, 10, 40);
+          } else {
+            controls.target.copy(center);
+            camera.position.set(center.x, center.y, center.z + size.y * 2.5);
+          }
+          controls.update();
+          // 뿌연 모델 보정
+          if (mesh.material) {
+            var mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            mats.forEach(function(m) {
+              if (m.color && m.color.r > 0.85) {
+                m.color.multiplyScalar(0.65);
+              }
+              if (m.emissive) m.emissive.setScalar(0);
+              if (m.gradientMap) m.gradientMap = null;
+              m.needsUpdate = true;
+            });
+          }
           addLog('✅ 모델 로드 완료', 'lime');
           if (callback) callback(mesh);
         }, function(p) {
@@ -332,10 +444,24 @@ export default function MMDPage() {
         });
       }
 
-      // 모델 선택 변경
+      // 모델 선택 → 버전 목록 갱신
       document.getElementById('model-select').addEventListener('change', function(e) {
+        var versionSelect = document.getElementById('version-select');
+        versionSelect.innerHTML = '<option value="">-- 버전 --</option>';
         var model = modelDB[e.target.value];
-        if (model) loadModel(model.pmx);
+        if (model) {
+          var keys = Object.keys(model.versions);
+          keys.forEach(function(key) {
+            var opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = model.versions[key].name;
+            versionSelect.appendChild(opt);
+          });
+          // 버전이 1개면 자동 선택
+          if (keys.length === 1) {
+            versionSelect.value = keys[0];
+          }
+        }
       });
 
       var cameraAnimation = null;
@@ -419,12 +545,20 @@ export default function MMDPage() {
           try {
             helper.add(currentModel, { animation: animation, physics: true });
             helperDone = true;
-            addLog('✅ 모션 적용 완료', 'lime');
+            addLog('✅ 모션 적용 완료 (IK+물리)', 'lime');
           } catch(e) {
             helperDone = true;
-            mixer = new THREE.AnimationMixer(currentModel);
-            mixer.clipAction(animation).play();
-            addLog('✅ 모션 적용 (FK)', 'lime');
+            addLog('helper 실패: ' + e.message + ', FK 시도');
+            try {
+              mixer = new THREE.AnimationMixer(currentModel);
+              var action = mixer.clipAction(animation);
+              action.setLoop(THREE.LoopOnce);
+              action.clampWhenFinished = true;
+              action.play();
+              addLog('✅ 모션 적용 (FK)', 'lime');
+            } catch(e2) {
+              addLog('❌ FK도 실패: ' + e2.message, 'red');
+            }
           }
           audioEl.src = mp3Url;
           addLog('✅ 음악 로드 완료', 'lime');
@@ -443,18 +577,29 @@ export default function MMDPage() {
       }
 
       // 로드 버튼 — 모델+곡 전체 새로 로드
+      var currentPmxPath = null;
+
+      // 모델만 로드
+      document.getElementById('model-load-btn').addEventListener('click', function() {
+        var modelKey = document.getElementById('model-select').value;
+        var versionKey = document.getElementById('version-select').value;
+        var model = modelDB[modelKey];
+        if (!model || !versionKey || !model.versions[versionKey]) { addLog('❌ 캐릭터와 버전을 선택하세요', 'red'); return; }
+        var pmxPath = model.versions[versionKey].pmx;
+        currentPmxPath = pmxPath;
+        addLog('모델 로드: ' + model.name + ' (' + model.versions[versionKey].name + ')');
+        loadModel(pmxPath);
+      });
+
+      // 곡 로드 버튼
       document.getElementById('load-btn').addEventListener('click', function() {
         var artist = document.getElementById('artist-select').value;
         var songKey = document.getElementById('song-select').value;
         if (!artist || !songKey) { addLog('❌ 가수와 곡을 선택하세요', 'red'); return; }
+        if (!currentModel) { addLog('❌ 먼저 모델을 로드하세요', 'red'); return; }
         var song = songDB[artist].songs[songKey];
-        var modelKey = document.getElementById('model-select').value;
-        var model = modelDB[modelKey];
-        if (!model) { addLog('❌ 모델을 선택하세요', 'red'); return; }
-        addLog('로드: ' + songDB[artist].name + ' - ' + song.name);
-        loadModel(model.pmx, function() {
-          loadSong(song.vmd, song.mp3, song.cam, song.cover);
-        });
+        addLog('곡 로드: ' + songDB[artist].name + ' - ' + song.name);
+        loadSong(song.vmd, song.mp3, song.cam, song.cover);
       });
 
       // 기본 모델만 로드 (T포즈 대기)

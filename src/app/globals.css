@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source not "../../public/mmd";
+@source not "../../content";
 
 @theme {
   --color-primary: #6CB4EE;
