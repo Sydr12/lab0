@@ -29,6 +29,11 @@ const projectMetaMap: Record<string, PageMeta> = {
     title: "Reel1",
     subtitle: "영화/드라마 개인 아카이브",
   },
+  stage1: {
+    title: "Stage1",
+    subtitle: "Web MMD 뷰어 & 댄스 스테이지",
+    link: "http://localhost:3001",
+  },
 };
 
 function getPageMeta(pathname: string): PageMeta {
