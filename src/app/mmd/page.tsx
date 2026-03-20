@@ -88,8 +88,8 @@ export default function MMDPage() {
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x1a1a2e);
 
-      camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-      camera.position.set(0, 1.5, 3);
+      camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 500);
+      camera.position.set(0, 10, 60);
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(width, height);
@@ -121,6 +121,19 @@ export default function MMDPage() {
       grid.position.y = 0.001;
       scene.add(grid);
 
+      // 텍스처 로드 실패를 무시하는 LoadingManager
+      var mmdManager = new THREE.LoadingManager();
+      mmdManager.onError = function(url) {
+        addLog('리소스 스킵: ' + url.split('/').pop());
+      };
+      // blob URL에서 텍스처 경로를 해석 못하므로 1x1 투명 픽셀로 대체
+      mmdManager.setURLModifier(function(url) {
+        if (url.indexOf('blob:') === 0 && url.indexOf('.pmx') === -1 && url.indexOf('.pmd') === -1 && url.indexOf('.vmd') === -1) {
+          return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAAlwSFlzAAAWJQAAFiUBSVIk8AAAABl0RVh0U29mdHdhcmUAcGFpbnQubmV0IDQuMC41ZYUyZQAAAA1JREFUGFdj+P///38ACfsD/QVDRcoAAAAASUVORK5CYII=';
+        }
+        return url;
+      });
+
       helper = new THREE.MMDAnimationHelper();
       clock = new THREE.Clock();
       mixer = null;
@@ -138,22 +151,95 @@ export default function MMDPage() {
       animate();
       addLog('렌더링 시작됨');
 
-      // 기본 모델 로드
-      addLog('기본 모델 로딩...');
       var gltfLoader = new THREE.GLTFLoader();
-      gltfLoader.load('/mmd/model.glb', function(gltf) {
-        currentModel = gltf.scene;
-        scene.add(currentModel);
-        if (gltf.animations.length > 0) {
-          mixer = new THREE.AnimationMixer(currentModel);
-          mixer.clipAction(gltf.animations[0]).play();
-        }
-        addLog('✅ 기본 모델 로드 완료', 'lime');
-      }, null, function(err) {
-        addLog('기본 모델 없음 (PMX/GLB를 업로드하세요)');
-      });
+      var mmdLoader = new THREE.MMDLoader(mmdManager);
 
-      // PMX 파일 업로드
+      // PMX 기본 모델 직접 로드
+      addLog('PMX 모델 로딩...');
+      var pmxUrl = '/mmd/lovelive20141216/lovelive2/Kousaka_Honoka.pmx';
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', pmxUrl, true);
+      xhr.responseType = 'arraybuffer';
+      xhr.onprogress = function(e) {
+        if (e.total > 0) addLog('모델 로딩: ' + Math.round(e.loaded / e.total * 100) + '%');
+      };
+      xhr.onload = function() {
+        if (xhr.status !== 200) {
+          addLog('❌ PMX 파일 없음', 'red');
+          return;
+        }
+        try {
+          var parser = new MMDParser.Parser();
+          var pmx = parser.parsePmx(xhr.response, true);
+          addLog('파싱 완료: 정점 ' + pmx.metadata.vertexCount);
+
+          var geo = new THREE.BufferGeometry();
+          var positions = [];
+          var normals = [];
+          var uvs = [];
+          var indices = [];
+
+          for (var i = 0; i < pmx.vertices.length; i++) {
+            var v = pmx.vertices[i];
+            positions.push(v.position[0], v.position[1], v.position[2]);
+            normals.push(v.normal[0], v.normal[1], v.normal[2]);
+            uvs.push(v.uv[0], v.uv[1]);
+          }
+          for (var i = 0; i < pmx.faces.length; i++) {
+            var face = pmx.faces[i];
+            indices.push(face.indices[0], face.indices[1], face.indices[2]);
+          }
+
+          geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+          geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+          geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+
+          var indexArray = new Uint32Array(indices);
+          geo.setIndex(new THREE.BufferAttribute(indexArray, 1));
+
+          // 머티리얼 그룹 설정
+          var materials = [];
+          var offset = 0;
+          for (var i = 0; i < pmx.materials.length; i++) {
+            var m = pmx.materials[i];
+            var d = m.diffuse || [0.8, 0.8, 0.8, 1.0];
+            var mat = new THREE.MeshPhongMaterial({
+              color: new THREE.Color(d[0], d[1], d[2]),
+              opacity: d[3],
+              transparent: d[3] < 1.0,
+              side: THREE.DoubleSide,
+              shininess: 20
+            });
+            if (m.ambient) {
+              mat.emissive = new THREE.Color(m.ambient[0] * 0.2, m.ambient[1] * 0.2, m.ambient[2] * 0.2);
+            }
+            materials.push(mat);
+            var faceIndexCount = m.faceCount * 3;
+            geo.addGroup(offset, faceIndexCount, i);
+            offset += faceIndexCount;
+          }
+
+          geo.computeBoundingSphere();
+          var mesh = new THREE.Mesh(geo, materials);
+          currentModel = mesh;
+          scene.add(mesh);
+
+          var box = new THREE.Box3().setFromObject(mesh);
+          var center = box.getCenter(new THREE.Vector3());
+          var size = box.getSize(new THREE.Vector3());
+          controls.target.copy(center);
+          camera.position.set(center.x, center.y, center.z + size.y * 2.5);
+          controls.update();
+
+          addLog('✅ PMX 모델 로드 완료 (' + pmx.materials.length + ' 머티리얼)', 'lime');
+        } catch(err) {
+          addLog('❌ PMX 파싱 실패: ' + err.message, 'red');
+        }
+      };
+      xhr.onerror = function() { addLog('❌ PMX 다운로드 실패', 'red'); };
+      xhr.send();
+
+      // PMX 파일 업로드 — parser로 직접 파싱
       document.getElementById('pmx-input').addEventListener('change', function(e) {
         var file = e.target.files[0];
         if (!file) return;
@@ -163,32 +249,76 @@ export default function MMDPage() {
           scene.remove(currentModel);
           currentModel = null;
           mixer = null;
+          helper = new THREE.MMDAnimationHelper();
         }
 
         var reader = new FileReader();
         reader.onload = function(ev) {
-          var mmdLoader = new THREE.MMDLoader();
-          var blob = new Blob([ev.target.result]);
-          var url = URL.createObjectURL(blob);
+          try {
+            var data = ev.target.result;
+            var parser = new MMDParser.Parser();
+            var pmx = parser.parsePmx(data, true);
+            addLog('파싱 완료: 정점 ' + pmx.metadata.vertexCount + ', 면 ' + pmx.metadata.faceCount);
 
-          mmdLoader.load(url, function(mesh) {
+            // 직접 지오메트리 생성
+            var geo = new THREE.BufferGeometry();
+            var positions = [];
+            var normals = [];
+            var uvs = [];
+            var indices = [];
+
+            for (var i = 0; i < pmx.vertices.length; i++) {
+              var v = pmx.vertices[i];
+              positions.push(v.position[0], v.position[1], v.position[2]);
+              normals.push(v.normal[0], v.normal[1], v.normal[2]);
+              uvs.push(v.uv[0], v.uv[1]);
+            }
+
+            for (var i = 0; i < pmx.faces.length; i++) {
+              var face = pmx.faces[i];
+              indices.push(face.indices[0], face.indices[1], face.indices[2]);
+            }
+
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+            geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+
+            var indexArray = new Uint32Array(indices);
+            geo.setIndex(new THREE.BufferAttribute(indexArray, 1));
+
+            var materials = [];
+            var offset = 0;
+            for (var i = 0; i < pmx.materials.length; i++) {
+              var m = pmx.materials[i];
+              var d = m.diffuse || [0.8, 0.8, 0.8, 1.0];
+              var mat = new THREE.MeshPhongMaterial({
+                color: new THREE.Color(d[0], d[1], d[2]),
+                opacity: d[3],
+                transparent: d[3] < 1.0,
+                side: THREE.DoubleSide,
+                shininess: 20
+              });
+              materials.push(mat);
+              geo.addGroup(offset, m.faceCount * 3, i);
+              offset += m.faceCount * 3;
+            }
+
+            geo.computeBoundingSphere();
+            var mesh = new THREE.Mesh(geo, materials);
             currentModel = mesh;
             scene.add(mesh);
-            helper.add(mesh);
-            addLog('✅ PMX 모델 로드 완료: ' + file.name, 'lime');
-            URL.revokeObjectURL(url);
 
-            // 카메라 자동 조정
             var box = new THREE.Box3().setFromObject(mesh);
             var center = box.getCenter(new THREE.Vector3());
             var size = box.getSize(new THREE.Vector3());
             controls.target.copy(center);
-            camera.position.set(center.x, center.y + size.y * 0.3, size.y * 2.5);
-          }, function(p) {
-            if (p.total > 0) addLog('로딩: ' + Math.round(p.loaded / p.total * 100) + '%');
-          }, function(err) {
-            addLog('❌ PMX 로드 실패: ' + (err.message || err), 'red');
-          });
+            camera.position.set(center.x, center.y, center.z + size.y * 2.5);
+            controls.update();
+
+            addLog('✅ PMX 모델 로드 완료 (' + pmx.materials.length + ' 머티리얼)', 'lime');
+          } catch(err) {
+            addLog('❌ PMX 파싱 실패: ' + (err.message || err), 'red');
+          }
         };
         reader.readAsArrayBuffer(file);
       });
@@ -208,7 +338,6 @@ export default function MMDPage() {
           var blob = new Blob([ev.target.result]);
           var url = URL.createObjectURL(blob);
 
-          var mmdLoader = new THREE.MMDLoader();
           mmdLoader.loadAnimation(url, currentModel, function(animation) {
             helper.remove(currentModel);
             helper.add(currentModel, { animation: animation });
