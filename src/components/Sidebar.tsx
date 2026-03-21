@@ -32,6 +32,7 @@ const menuItems: MenuItem[] = [
       { label: "글꼴 비교", href: "/fonts" },
       { label: "Stage1", href: "/stage1" },
       { label: "Idol2", href: "/idol2" },
+      { label: "업로드", href: "/upload" },
     ],
   },
   { label: "설정", href: "/settings" },
